@@ -1,0 +1,44 @@
+.popup {
+  font-size: 13px;
+}
+
+.title {
+  font: 600 16px var(--font-display);
+  margin: 0 18px 4px 0;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+
+.text {
+  margin: 6px 0 0;
+}
+
+.stats {
+  font-size: 13.5px;
+  margin: 6px 0 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.actions {
+  margin-top: 8px;
+}
+
+.tipTitle {
+  display: block;
+  font: 600 14px var(--font-display);
+}
+
+.tipMeta {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 1px 0 3px;
+}

@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+
+# downloaded online data (OpenStreetMap, DEM tiles, BLM land); safe to delete
+.cache/
+
+# build and test output
+app/dist/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.wrangler/

@@ -1,0 +1,49 @@
+.wrap {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+}
+
+.map {
+  position: absolute;
+  inset: 0;
+  background: #e6dcc3;
+}
+
+.loading,
+.error {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  background: var(--bg);
+  color: var(--muted);
+  font: 500 20px var(--font-display);
+}
+
+.error {
+  color: var(--fg);
+  font: 14px var(--font-body);
+}
+
+.terrainButton {
+  font: 700 13px var(--font-display) !important;
+  color: var(--fg) !important;
+  letter-spacing: 0.02em;
+}
+
+.terrainButton.on {
+  background: var(--accent) !important;
+  color: var(--accent-fg) !important;
+}
+
+@media (max-width: 820px) {
+  .terrainButton {
+    width: 38px !important;
+    height: 38px !important;
+  }
+}

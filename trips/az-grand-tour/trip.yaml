@@ -1,0 +1,479 @@
+# Arizona Grand Tour (December 2026). Schema: pipeline/src/config/schema.ts. Build: pnpm trip build az-grand-tour
+
+title: Arizona Grand Tour
+shortName: AZ Grand Tour
+subtitle: Phoenix to Tucson by Fool's Loop, Queen's Ransom, Arizona Trail and the Madrean Rugged Ramble
+description: Route, day plan, POIs and offline maps for the Arizona Grand Tour bikepacking trip.
+attribution: "Routes: bikepacking.com & AZTR GPX"
+
+# West, south, east, north: the area of the basemap overlay and the land data.
+region: [-113.37890625, 30.90222470517144, -109.16015625, 35.31736632923788]
+
+tracks:
+  fools:
+    file: tracks/sources/fools_loop_feb2021.gpx
+    show: { name: "Fool's Loop (bikepacking.com, Feb 2021 GPX) - full loop", color: "#333333" }
+    waypoints: { label: "Fool's Loop" }
+  qr:
+    file: tracks/sources/queens_ransom_v2026.07.gpx
+    show: { name: "Queen's Ransom (bikepacking.com, v2026.07 GPX) - full loop", color: "#1f5fbf" }
+    waypoints: { label: "Queen's Ransom" }
+  rll:
+    file: tracks/sources/redington_lemmon_loop.gpx
+    show: { name: Redington-Lemmon Loop (bikepacking.com GPX) - full loop, color: "#0b8a8a" }
+    waypoints: { label: Redington-Lemmon Loop }
+  mrr:
+    file: tracks/sources/madrean_rugged_ramble.gpx
+    show: { name: Madrean Rugged Ramble (bikepacking.com GPX) - full loop, color: "#8c4a1f" }
+    waypoints: { label: Madrean Rugged Ramble, keepAll: true }
+  sb:
+    file: tracks/sources/AZT300_SBXL_2026_v3.gpx
+    show: { name: "AZTR AZT300 SB-XL 2026 v3 (southbound ITT route, Picketpost -> Mexico)", color: "#7a2fb5" }
+    waypoints: { label: AZTR AZT300 SB-XL }
+  nb:
+    file: tracks/sources/AZT300_NB_2026_v6.gpx
+    show: { name: "AZTR AZT300 2026 v6 (northbound race route, Mexico -> Picketpost)", color: "#b07cd8" }
+    waypoints: { label: AZTR AZT300 v6 }
+  legacy:
+    file: tracks/sources/Patagonia_LegacyAZT.gpx
+    show: { name: AZTR Legacy AZT to Patagonia (Canelo Hills West <-> Patagonia <-> SR-82 underpass), color: "#c71585" }
+  det:
+    file: tracks/sources/AZT_Summerhaven_detour_2026.gpx
+    show: { name: AZTR Summerhaven detour (Sunset Trail closure Mon-Thu until Dec 2026), color: "#ff7f0e" }
+  azt-ata:
+    file: tracks/sources/azt-ata-passages-1-22.gpx
+    show:
+      name: Arizona Trail - official ATA hiking line (passages 1-22, Mexico border -> Saddle Mountain; wilderness sections are closed to bikes)
+      color: "#ff1493"
+  sio-east:
+    file: tracks/sources/sio_east_v2023.gpx
+    show: { name: "Sky Islands Odyssey East Loop (bikepacking.com, v2023 GPX)", color: "#ffb300" }
+    waypoints: { label: Sky Islands Odyssey East }
+  sio-west:
+    file: tracks/sources/sio_west_v2023.gpx
+    show: { name: "Sky Islands Odyssey West Loop (bikepacking.com, v2023 GPX)", color: "#00bcd4" }
+    waypoints: { label: Sky Islands Odyssey West }
+
+  scottsdale-to-desert-trails: { file: tracks/connectors/scottsdale-to-desert-trails.gpx }
+  kelvin-to-kearny: { file: tracks/connectors/kelvin-to-kearny.gpx }
+  oracle-b3: { file: tracks/connectors/oracle-b3.gpx }
+  american-flag-th: { file: tracks/connectors/american-flag-th.gpx }
+  catalina-highway: { file: tracks/connectors/catalina-highway.gpx }
+
+  link-1a-chaparral: { file: tracks/alternatives/link-1a-chaparral.gpx }
+  link-1c-pima-mcdowell: { file: tracks/alternatives/link-1c-pima-mcdowell.gpx }
+  link-2-canal-granite-reef: { file: tracks/alternatives/link-2-canal-granite-reef.gpx }
+  link-3-fountain-hills: { file: tracks/alternatives/link-3-fountain-hills.gpx }
+  link-4-rio-salado: { file: tracks/alternatives/link-4-rio-salado.gpx }
+  kearny-west-bank: { file: tracks/alternatives/kearny-west-bank.gpx }
+  oracle-b1-road: { file: tracks/alternatives/oracle-b1-road.gpx }
+  oracle-b2-road: { file: tracks/alternatives/oracle-b2-road.gpx }
+  oracle-c-out-and-back: { file: tracks/alternatives/oracle-c-out-and-back.gpx }
+  temporal-gulch: { file: tracks/alternatives/temporal-gulch.gpx }
+
+# Section kinds: map colour, the surface assumed where OpenStreetMap has no match, and flat speeds (km/h).
+kinds:
+  fools: { label: "Fool's Loop", color: "#111111", surface: unpaved, speed: { single: 12, unpaved: 15 } }
+  qr: { label: "Queen's Ransom", color: "#1f5fbf", surface: single, speed: { single: 11, unpaved: 14 } }
+  azt: { label: Arizona Trail, color: "#7a2fb5", surface: single, speed: { single: 9.5, unpaved: 13 } }
+  azt-mixed: { label: Arizona Trail, color: "#7a2fb5", surface: single, speed: { single: 10, unpaved: 13 } }
+  dirt-road: { label: Mt Lemmon Control Road, color: "#0b8a8a", surface: unpaved }
+  mrr: { label: Madrean Rugged Ramble, color: "#8c4a1f", surface: unpaved, speed: { single: 10.5, unpaved: 14.5 } }
+  mrr-azt: { label: Madrean Rugged Ramble, color: "#8c4a1f", surface: single, speed: { single: 9.5, unpaved: 13 } }
+  paved: { label: Road links, color: "#d62728", surface: paved }
+  mixed: { label: Mixed links, color: "#e58a00", surface: paved }
+
+speed:
+  pavedKmh: 20
+  fallbackKmh: { single: 10, unpaved: 14 }
+  climbRates: { single: 450, unpaved: 550, paved: 700 }
+
+# Point ranges are inclusive indices into the track's points. Source points are copied verbatim.
+sections:
+  - id: "1"
+    name: Fool's Loop (bikepacking.com GPX, official direction) - 44th St Sky Train station to Scottsdale exit at loop km 420
+    kind: fools
+    track: fools
+    range: [0, 14670]
+  - id: "2"
+    name: "Link 1b: Scottsdale (Shea Blvd) -> Pima Rd -> Arizona Canal bank path (3.5 km dirt, SRPMIC) -> Alma School Rd -> McKellips Rd -> Center St -> McDowell Rd -> Desert Trails Park (routed on OSM/BRouter)"
+    kind: paved
+    track: scottsdale-to-desert-trails
+  - id: "3"
+    name: Queen's Ransom (bikepacking.com GPX v2026.07) - Desert Trails Park / Hawes to the ADOT yard at Kelvin bridge
+    kind: qr
+    track: qr
+    range: [142, 7963]
+  - id: 4a
+    name: "Link: Kelvin bridge / ADOT yard -> E Ray Junction Rd -> AZ-177 -> Kearny (Norm's IGA, Old Time Pizza) (paved, routed on OSM)"
+    kind: paved
+    track: kelvin-to-kearny
+  - id: 4b
+    name: "Link: Kearny -> back to the Kelvin bridge the same way (paved)"
+    kind: paved
+    track: kelvin-to-kearny
+    reverse: true
+  - id: 5a
+    name: Queen's Ransom spur back to the Florence-Kelvin Hwy
+    kind: qr
+    track: qr
+    range: [7964, 7967]
+  - id: 5b
+    name: Arizona Trail (AZTR AZT300_SBXL_2026_v3 GPX) - Kelvin bridge -> Ripsey -> Boulders -> Antelope Peak -> Black Hills -> Tiger Mine Rd -> Hwy 77
+    kind: azt
+    track: sb
+    range: [10459, 25017]
+  - id: 6a
+    name: "Link: Hwy 77 -> Oracle (Patio Market / cafes) -> E American Ave -> Cody Loop Rd -> South Wildcat Trail -> Cody Trail (routed on OSM)"
+    kind: mixed
+    track: oracle-b3
+  - id: 6b
+    name: Arizona Trail (AZT300_SBXL points, ridden northbound) - Cody Trail to American Flag TH
+    kind: azt
+    track: sb
+    range: [26850, 27228]
+    reverse: true
+  - id: 6c
+    name: "Link: American Flag TH -> S Mt Lemmon Rd (150 m, OSM road geometry)"
+    kind: paved
+    track: american-flag-th
+  - id: "7"
+    name: Mt Lemmon Control Road (bikepacking.com Redington-Lemmon Loop GPX) - American Flag TH -> Peppersauce -> Summerhaven
+    kind: dirt-road
+    track: rll
+    range: [1169, 2266]
+  - id: "8"
+    name: "Summerhaven (AZT300_SBXL points): Control Road top -> Mt Lemmon General Store / Cookie Cabin"
+    kind: paved
+    track: sb
+    range: [29856, 30003]
+    reverse: true
+  - id: 9a
+    name: "Catalina Highway (General Hitchcock Hwy: routed on OSM from the Summerhaven General Store past Soldier Camp, then AZT300 v6 points) - Summerhaven -> Bug Spring / Green Mountain trailheads (paved)"
+    kind: paved
+    parts:
+      - track: catalina-highway
+      - { track: nb, range: [41110, 41670], reverse: true }
+  - id: 9b
+    name: Bug Spring Trail (AZT300_SBXL_2026_v3 points) - Bug Spring TH -> Prison Camp (technical descent, some hike-a-bike)
+    kind: azt
+    track: sb
+    range: [31520, 32083]
+    speed: { kmh: 5, climbRate: 350 }
+  - id: "10"
+    name: Arizona Trail (AZT300) - Prison Camp -> Molino Basin -> Bellota -> Redington Rd -> east Tucson -> Old Spanish Trail
+    kind: azt-mixed
+    track: sb
+    range: [32084, 37436]
+  - id: 10b
+    name: Madrean Rugged Ramble (bikepacking.com GPX) - Old Spanish Trail -> Camino Loma Alta -> Hope Camp Trail (Saguaro NP, bike-legal) -> Hope Camp -> down to Rincon Valley (replaces the AZT300 road bypass)
+    kind: mrr
+    track: mrr
+    range: [911, 2199]
+  - id: 11a
+    name: Madrean Rugged Ramble on the Arizona Trail (MRR points) - Rincon Valley -> Las Cienegas -> Santa Ritas -> Kentucky Camp (the MRR rides into the camp) -> Gardner Canyon, where the MRR leaves for Sonoita
+    kind: mrr-azt
+    track: mrr
+    range: [2200, 17888]
+  - id: 11b
+    name: Arizona Trail (AZT300) - Gardner Canyon -> Casa Blanca Canyon -> El Pilar -> SR-82 underpass
+    kind: azt
+    track: sb
+    range: [55135, 61774]
+  - id: "12"
+    name: AZTR 'Legacy AZT to Patagonia' GPX (reversed) - SR-82 underpass -> Train Track Trail -> Patagonia (resupply) -> Harshaw Rd -> AZT Canelo Hills West
+    kind: mixed
+    track: legacy
+    reverse: true
+  - id: "13"
+    name: Madrean Rugged Ramble on the Arizona Trail (MRR points) - Canelo Hills West -> Canelo Pass -> Canelo Hills East -> Parker Canyon Lake
+    kind: mrr-azt
+    track: mrr
+    range: [19599, 25207]
+  - id: "14"
+    name: Madrean Rugged Ramble (bikepacking.com GPX) - Parker Canyon Lake -> Lochiel (Mexico border) -> Patagonia -> Salero Canyon -> Madera Canyon area -> Santa Rita Experimental Range -> Tucson (Time Market)
+    kind: mrr
+    track: mrr
+    range: [25208]
+
+alternatives:
+  - group: Fool's Loop -> Queen's Ransom link
+    items:
+      - id: link-1a
+        name: "Link 1a: Pima Rd -> Chaparral Rd -> Alma School Rd (all paved public roads, no canal bank)"
+        track: link-1a-chaparral
+        color: "#d62728"
+        note: "Fallback for the chosen link 1b: +0.8 km, stays on paved public roads. Use it if the Arizona Canal bank east of Pima Rd (inside the Salt River Pima-Maricopa Indian Community) turns out to be closed or signed no-trespassing."
+      - id: link-2
+        name: "Link 2: Arizona Canal bank path to Granite Reef (BRouter trekking from loop km 415)"
+        track: link-2-canal-granite-reef
+        color: "#2ca02c"
+        note: "Not chosen: 41 km, mostly car-free, but ~16 km of canal bank inside SRPMIC - access unverified."
+      - id: link-3
+        name: "Link 3: Fountain Hills / Shea Blvd / Bush Hwy / Usery Pass Rd to Big Sister (from loop km 405)"
+        track: link-3-fountain-hills
+        color: "#17becf"
+        note: "Not chosen: 46 km, scenic roads, but skips the first 16 km of Queen's Ransom singletrack (Hawes)."
+      - id: link-4
+        name: "Link 4: Rio Salado Pathway from Tempe Town Lake (loop km 439) to QR km 21"
+        track: link-4-rio-salado
+        color: "#e377c2"
+        note: "Not chosen: 21.6 km, almost traffic-free, but 7 km more total and more city."
+      - id: link-1c
+        name: "Link 1c: Pima Rd all the way to McDowell Rd (BRouter variant)"
+        track: link-1c-pima-mcdowell
+        color: "#bcbd22"
+        note: "Not chosen: like link 1a but stays on Pima Rd to McDowell Rd; 0.9 km longer than 1b."
+  - group: Kearny -> Arizona Trail
+    items:
+      - id: kearny-west-bank
+        name: West-bank track + Ripsey Wash 4x4 tracks from Kearny (OSM)
+        track: kearny-west-bank
+        color: "#2ca02c"
+        note: "Dropped: depends on the Kearny river bridge signed \"private - keep off\"; 0.7 km unmapped gap; skips the Ripsey ridge switchbacks. Route goes back to the Kelvin bridge instead."
+  - group: Oracle
+    items:
+      - id: oracle-a
+        name: "A: AZT through Oracle State Park (Hwy 77 -> American Flag TH), skipped"
+        track: sb
+        range: [25017, 26850]
+        style: skipped
+        color: "#7a2fb5"
+        note: "The AZT section replaced by the town visit: 10.9 km singletrack, +230 m."
+      - id: oracle-b1
+        name: "B1: Hwy 77 -> Patio Market -> E Mt Lemmon Hwy -> American Flag TH (road)"
+        track: oracle-b1-road
+        color: "#2ca02c"
+        note: "Not chosen: 11.2 km of pavement."
+      - id: oracle-b2
+        name: "B2: same via Circle K / Dollar General at the west end of town"
+        track: oracle-b2-road
+        color: "#ff7f0e"
+        note: "Not chosen: 17.8 km of pavement; use it if you need a full grocery."
+      - id: oracle-c
+        name: "C: AZT to American Flag TH, out-and-back to the Patio Market on Mt Lemmon Hwy"
+        track: oracle-c-out-and-back
+        color: "#1f77b4"
+        note: "Not chosen: +13.8 km of pavement."
+  - group: Mt Lemmon descent
+    items:
+      - id: sbxl-trails
+        name: "SB-XL trail variant: upper Control Road -> Kellogg -> Incinerator Ridge -> Green Mountain trails to the Bug Spring TH (skipped)"
+        track: sb
+        range: [30003, 31520]
+        style: skipped
+        color: "#7a2fb5"
+        note: "Skipped: 26 km of expert singletrack with long hike-a-bike (the AZTR SB-XL line). The route takes the Catalina Highway down to the Bug Spring trailhead instead and keeps Bug Spring, Molino and Bellota."
+      - id: highway-to-prison-camp
+        name: Catalina Highway below the Bug Spring TH -> Prison Camp (all pavement, skips Bug Spring Trail)
+        track: nb
+        range: [40746, 41110]
+        color: "#b07cd8"
+        note: "Not chosen: the bail-out if Bug Spring Trail is too much after the Control Road day, or iced up."
+      - id: sunset-trail
+        name: "AZT300 v6 line: Summerhaven -> Marshall Gulch -> Sunset Trail #90 -> Soldier Camp roads -> back on the highway"
+        track: nb
+        range: [41670, 43696]
+        reverse: true
+        style: skipped
+        color: "#9467bd"
+        note: "Not chosen: the AZTR race line leaves the highway at the General Store for 2 km of dead-end road to Marshall Gulch, then the Sunset Trail (AZT singletrack, closed Mon-Thu until Dec 2026 per the AZTR detour note) and Soldier Camp roads; 7.4 km vs 6.5 km on the highway."
+  - group: Kentucky Camp -> Canelo Hills
+    items:
+      - id: mrr-sonoita
+        name: Madrean Rugged Ramble via Sonoita and Hwy 83 (MRR points)
+        track: mrr
+        range: [17888, 19204]
+        color: "#8c4a1f"
+        note: "Not chosen: ~30 km with a Sonoita resupply; the route stays on the AZT (Casa Blanca Canyon / El Pilar)."
+      - id: azt-canelo-west
+        name: "AZT Canelo Hills West: SR-82 underpass -> Canelo Hills (skipped for the Patagonia detour)"
+        track: sb
+        range: [61774, 66659]
+        style: skipped
+        color: "#7a2fb5"
+        note: "The 13.4 km of AZT singletrack replaced by the Train Track Trail / Patagonia / Harshaw Rd legacy route."
+  - group: Mexico border
+    items:
+      - id: azt-southern-terminus
+        name: AZT to the southern terminus (Parker Canyon Lake -> Sunnyside Canyon -> Montezuma Canyon Rd / monument 103)
+        track: sb
+        range: [71574]
+        color: "#7a2fb5"
+        note: "Not chosen: ~25 km each way; the route touches the border at Lochiel on the MRR instead."
+  - group: Madrean Rugged Ramble start
+    items:
+      - id: mrr-start
+        name: "MRR as published: Tucson -> Old Spanish Trail (first 39.5 km, not ridden)"
+        track: mrr
+        range: [0, 975]
+        style: skipped
+        color: "#8c4a1f"
+        note: "The route arrives on the AZT from Mt Lemmon instead and joins the MRR line on Old Spanish Trail at Camino Loma Alta."
+  - group: Kentucky Camp
+    items:
+      - id: azt-kentucky-camp
+        name: AZT300 singletrack past Kentucky Camp (the route follows the MRR into the camp instead)
+        track: sb
+        range: [51198, 53983]
+        style: skipped
+        color: "#7a2fb5"
+        note: "The MRR line is used where it runs with the AZT; here it detours ~5.6 km through Kentucky Camp (water, toilets, camping) on the camp road while the AZT300 stays on singletrack to the west."
+  - group: Patagonia approach
+    items:
+      - id: temporal-gulch
+        name: Temporal Gulch Rd (FR 72) into Patagonia from the north, reached from the AZT by the Little Casa Trail #169 (OSM-routed)
+        track: temporal-gulch
+        color: "#2ca02c"
+        note: "Possible instead of the last 12 km of AZT singletrack + the Train Track Trail: ~7.4 km of Little Casa singletrack (bike legality / condition unverified), then 9.4 km of graded FR 72 descending into Patagonia; 18.5 km vs 20 km, both nearly flat or downhill. FR 72 was the AZT alignment until the 2020-22 Temporal Gulch reroute."
+  - group: Saguaro NP
+    items:
+      - id: azt300-road-bypass
+        name: "AZT300 road bypass: Old Spanish Trail -> Camino Loma Alta junction -> roads around the park boundary -> Rincon Valley (skipped)"
+        track: sb
+        range: [37507, 39076]
+        style: skipped
+        color: "#7a2fb5"
+        note: "The 8.6 km AZT300 road bypass replaced by the Madrean Rugged Ramble line through Saguaro NP (Camino Loma Alta -> Hope Camp Trail, bike-legal -> Hope Camp -> Rincon Valley; 10.7 km)."
+
+pois:
+  note: "The category groups hold waypoints from the bikepacking.com and AZTR GPX files plus the route notes. OpenStreetMap points are a separate group (off by default) and keep their category colour and icon, drawn smaller. Points appear from zoom 9; suggested overnights always. OSM water is unverified: springs and stock tanks in Arizona are seasonal - check the ATA/FarOut AZT Water Report before relying on any of them."
+  link: { label: AZT Water Report (FarOut), url: "https://app.faroutguides.com/guides/Arizona%20Trail%20Water%20Report" }
+  keywords:
+    info: [leaving saguaro, entering saguaro]
+    camp: [bosquecito, terrasol, bog springs]
+    lodging: [stage stop]
+    resupply: [basha, cook shack, nidito, micha, patio, safeway, circle k, dollar, subway, mcdonald]
+  categoryOverrides:
+    Jalapeno Inferno: resupply
+    El Encanto Dos: resupply
+    De La Cruz: resupply
+    Patagonia Lumber Co.: resupply
+    Rock Springs Cafe: resupply
+    Goldfield Ghost Town: resupply
+    Lochiel: info
+    TerraSol Campground: camp
+    Wilderness Boundary Ahead: info
+    Begin State Trust Land: info
+    El Pilar: water
+    Blue Barrel (Watch for bees!!): water
+    Summerhaven: resupply
+    Usery Mtn. Regional Park: camp
+    Kentucky Camp: camp
+    ADOT: water
+    Convenience Store: resupply
+    Patagonia Bikes: bike
+    Colosall Cave Mountain Park: camp
+    San Rafael State Natural Area: info
+    Patagonia Mountains: info
+    Next 4 Miles are rocky, loose, and technical!: info
+    Technical Terrain for the next six miles: info
+    Guajolote Flats: info
+    Water Available at Kentucky Camp: water
+    Kentucky Camp Cabins: lodging
+    Public Restrooms: water
+    Adobe Ruins: camp
+    Parker Canyon Lake Marina: resupply
+    Oracle: resupply
+    Desert Trails Park: water
+  descriptionAppend:
+    Kentucky Camp: " Water tap."
+  custom:
+    - { lat: 33.0589, lon: -110.9058, category: resupply, name: "Kearny: Norm's IGA, Old Time Pizza, Cosmic Coffee, Cactus Video & Market", description: "Resupply town, 10.6 km each way from the Kelvin bridge. Water fill station by the West End Cafe." }
+    - { lat: 33.0531, lon: -110.9161, category: water, name: Kearny water fill station, description: "OSM: drinking water at W End Cafe / Veterans Ave." }
+    - { lat: 33.0541, lon: -110.9198, category: info, name: "Kearny west bridge over the Gila: PRIVATE, keep off", description: Why the dirt shortcut west of Kearny was dropped. }
+    - { lat: 32.6117475, lon: -110.7709869, category: resupply, name: Oracle Patio Cafe & Market, description: "Deli, groceries, pastries; cafes and restaurants nearby (Riot Grill, Casa Rivera's, De Marco's)." }
+    - { lat: 32.6196, lon: -110.7985, category: resupply, name: "Oracle: Circle K (2000 W American Ave) and Dollar General (2406 W American Ave) - approx.", description: "Full grocery, ~2.5 km west of the Patio Market along American Ave." }
+    - { lat: 32.5510547, lon: -110.7096496, category: resupply, name: Arizona Zipline Adventures / Peppersauce Kitchen, description: "Camping food & gear, restaurant - 2.5 mi up the Control Road from American Flag TH; check winter days/hours." }
+    - { lat: 32.44481, lon: -110.7605, category: resupply, name: "Summerhaven: Mt Lemmon General Store, Cookie Cabin, Sawmill Run", description: "Resupply at 2,400 m; check winter opening days. Lodging: Mt Lemmon Lodge / cabins." }
+    - lat: 31.6
+      lon: -110.7165
+      category: info
+      name: "Sonoita Springs Ranch easement: the 2.8 km of AZT east of the SR-82 underpass (Canelo Hills West) cross private ranch land - open sunrise to sunset only, no camping, stay on the trail"
+      description: Public AZT easement, not race-only (Trailforks / AZTR notes). The route turns off to Patagonia at the underpass and does not ride it; it only matters if you take the AZT Canelo Hills West alternative.
+    - { lat: 31.595853, lon: -110.724395, category: info, name: "SR-82 underpass: Train Track Trail to Patagonia (7.5 km)", description: Start of the legacy Patagonia detour. }
+    - { lat: 33.46706, lon: -111.70053, category: water, name: "Desert Trails Park: Queen's Ransom singletrack starts here", description: Water at the park. Hawes trail system. }
+    - { lat: 33.58608, lon: -111.8822, category: info, name: "Leave the Fool's Loop here (loop km 420) for the link to the Queen's Ransom" }
+    - { lat: 32.582924, lon: -110.717385, category: info, name: "American Flag TH: start of the Mt Lemmon Control Road (FR 38)", description: "Dirt climb ~38 km / +1,500 m to Summerhaven. Check winter road status (Coronado NF, Santa Catalina RD)." }
+    - { lat: 33.105939, lon: -110.974067, category: water, name: ADOT yard water spigot (Kelvin bridge), description: Push-down spigot on the fence; Old Time Pizza (Kearny) delivers here. }
+    - { lat: 31.33599, lon: -110.62381, category: info, name: "Lochiel: Mexico border fence, old border crossing, schoolhouse, picnic area", description: The southernmost point of the route. }
+    - { lat: 32.23147, lon: -110.96441, category: resupply, name: "Tucson: Time Market (finish)", description: "Food counter, cafe, pizza; 4th Ave bars and restaurants nearby." }
+  osm:
+    radiusM: 1500
+    # Inside these boxes (west, south, east, north) only bike shops, supermarkets, campgrounds and water are taken from OSM.
+    denseAreas:
+      - [-112.45, 33.25, -111.55, 33.78]
+      - [-111.15, 32.03, -110.68, 32.38]
+
+plan:
+  days: { min: 18, max: 30, default: 20 }
+  longDayHours: 7.5
+  start: Phoenix, 44th St Sky Train station
+  finish: Tucson, Time Market (finish)
+  note: "Moving time = distance ÷ speed + climb ÷ climbing rate: singletrack 9.5–12 km/h (AZT slowest, Bug Spring Trail 5 km/h), dirt roads 13–15 km/h, pavement 20 km/h; climbing 450 / 550 / 700 m/h. Add breaks on top: December has ~10 h of daylight (Tucson sunrise ~7:15, sunset ~17:25), so days over 7.5 h moving are flagged."
+  overnights:
+    - { km: 98.8, lat: 33.97994, lon: -111.71646, name: "Horseshoe Campground (fee, water, Verde River)" }
+    - { km: 185.0, lat: 34.30658, lon: -112.11161, name: "Cordes Junction (motel, 50s Diner, 24 h McDonald's)" }
+    - { km: 279.3, lat: 34.19407, lon: -112.15867, name: "Bumble Bee: ranch camping (call ahead) or free dispersed camping by Bumble Bee Creek" }
+    - { km: 358.1, lat: 33.84228, lon: -112.11841, name: "Wild camp on the Black Canyon Trail / state land north of New River (no water - fill in Black Canyon City)" }
+    - { km: 437.7, lat: 33.45147, lon: -111.8311, name: "Scottsdale / Mesa hotel (or Usery Mountain Park campground 44 km further)" }
+    - { km: 512.4, lat: 33.47964, lon: -111.4985, name: "Lost Dutchman State Park campground (reserve) or dispersed camping on State Trust land near Goldfield" }
+    - { km: 604.1, lat: 33.2824, lon: -111.12263, name: "Superior (motel, Los Hermanos, Circle K) - last town before the Gila canyons" }
+    - { km: 683.0, lat: 33.06027, lon: -110.90905, name: "Kearny (General Kearny Inn / hotel; resupply)" }
+    - { km: 740.0, lat: 32.86957, lon: -110.87593, name: "Freeman Rd trailhead: AZT rainwater collector, wild camp" }
+    - { km: 792.1, lat: 32.61002, lon: -110.76623, name: "Oracle (B&Bs, ranch stays) or wild camp on NF land above American Flag TH" }
+    - { km: 840.2, lat: 32.4477, lon: -110.75391, name: "Summerhaven (Mt Lemmon Lodge, cabins) - 2,400 m, freezing nights" }
+    - { km: 874.2, lat: 32.33753, lon: -110.68313, name: "Molino Basin Campground (Coronado NF, fee, no water) - a short day after the Control Road; or push on to the Tucson east side (6 h more)" }
+    - { km: 935.5, lat: 32.11378, lon: -110.70431, name: "Tucson east side hotel (Tanque Verde / Rocking K area)" }
+    - { km: 997.8, lat: 31.8819, lon: -110.7033, name: "Wild camp on the AZT, Las Cienegas / Empire Ranch area (water at the Rincon rain collector or Cienega Creek)" }
+    - { km: 1029.0, lat: 31.73774, lon: -110.73077, name: "Kentucky Camp (reservable historic cabin, water, pit toilets; dispersed camping nearby)" }
+    - { km: 1076.3, lat: 31.53963, lon: -110.7312, name: "Patagonia: TerraSol Campground (bike-friendly) or Stage Stop Inn" }
+    - { km: 1123.7, lat: 31.41958, lon: -110.43872, name: "Parker Canyon Lake Campground (fee, water at marina - winter hours)" }
+    - { km: 1195.3, lat: 31.53774, lon: -110.76227, name: "Patagonia again (TerraSol / inn)" }
+    - { km: 1257.7, lat: 31.75798, lon: -110.88718, name: "Madera Canyon: Bog Springs Campground (first-come) or Proctor Rd dispersed camping; water at Proctor picnic area" }
+
+basemap:
+  majorPlaces: [Phoenix, Tucson]
+
+land:
+  corridorKm: 15
+  note: "Rough (generalised) boundaries - good enough to tell National Forest from State Trust or private land when picking a camp; State Trust land needs the Arizona State Land Dept recreational permit, private land needs permission. Click the map with the overlay on to read the owner at a point."
+
+imagery:
+  basemaps: [usgs-topo, usgs-imagery, terrain, opentopomap, esri-imagery, mapbox]
+  default: usgs-topo
+  thumbnail: { lat: 32.445, lon: -110.76 }
+
+# Tile packs the app can store for offline use. radiusKm: zoom -> buffer in km around the route and alternatives.
+# Zoomed-out levels cover a wide area cheaply; detail levels stay close to the route (the map upscales lower zooms elsewhere).
+offline:
+  packs:
+    - id: terrain
+      label: Terrain shading and 3D
+      source: terrain
+      radiusKm: { 6: 200, 7: 200, 8: 200, 9: 150, 10: 100, 11: 50 }
+    - id: topo
+      label: USGS topo, overview (zoom 8-12)
+      source: usgs-topo
+      radiusKm: { 8: 200, 9: 150, 10: 100, 11: 75, 12: 50 }
+    - id: topo-detail
+      label: USGS topo, detail (zoom 13-15)
+      source: usgs-topo
+      radiusKm: { 13: 15, 14: 5, 15: 2 }
+    - id: imagery
+      label: Satellite, overview (zoom 8-12)
+      source: usgs-imagery
+      radiusKm: { 8: 200, 9: 150, 10: 100, 11: 75, 12: 50 }
+    - id: imagery-detail
+      label: Satellite, detail (zoom 13-15)
+      source: usgs-imagery
+      radiusKm: { 13: 10, 14: 4, 15: 1.5 }
+    - id: imagery-sharpest
+      label: Satellite, sharpest (zoom 16)
+      source: usgs-imagery
+      radiusKm: { 16: 0.5 }
+
+gpx:
+  baseName: AZ_FoolsLoop_QueensRansom_AZT_Lemmon_MRR
+  name: "AZ Grand Tour: Fools Loop + Queen's Ransom + AZT + Mt Lemmon + Madrean Rugged Ramble"
+  description: "Stitched bikepacking route: Fool's Loop (bikepacking.com) -> link 1b via the Arizona Canal -> Queen's Ransom (bikepacking.com) -> road to Kearny and back -> Arizona Trail (AZTR AZT300_SBXL_2026_v3) to Oracle -> Mt Lemmon Control Road (bikepacking.com Redington-Lemmon Loop) -> Catalina Highway down from Summerhaven -> Bug Spring Trail -> AZT (Molino, Bellota) -> Madrean Rugged Ramble through Saguaro NP and on the AZT to Kentucky Camp -> AZT to the SR-82 underpass with the AZTR Legacy Patagonia detour -> AZT / Madrean Rugged Ramble to Parker Canyon Lake -> Madrean Rugged Ramble via Lochiel and Patagonia to Tucson. {distanceKm} km, ~{climbM} m climbing. Source trackpoints are copied verbatim; connectors routed on OpenStreetMap."

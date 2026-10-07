@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Must match the Worker's name in the Cloudflare dashboard.
+  "name": "az-planning",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    // Built by `pnpm build`; every trip page is prebuilt at /<slug>/.
+    "directory": "./app/dist",
+    // 404.html is the app, which says the trip was not found; missing files get a real 404.
+    "not_found_handling": "404-page",
+  },
+}

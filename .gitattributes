@@ -1,0 +1,8 @@
+*.png binary
+*.jpg binary
+*.pbf binary
+pnpm-lock.yaml -diff
+# large generated or source data: no line diffs
+*.gpx -diff
+trips/*/dist/trip.json -diff linguist-generated
+trips/*/dist/** linguist-generated

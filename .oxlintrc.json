@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react", "import", "vitest"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "env": { "builtin": true, "browser": true, "node": true },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/consistent-type-imports": "error",
+    "import/no-cycle": "error",
+    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css"] }],
+    "eqeqeq": ["error", "smart"],
+    "no-var": "error",
+    "prefer-const": "error",
+    // Narrowing parsed JSON and MapLibre expression tuples is deliberate; reviews catch bad casts.
+    "typescript/no-unsafe-type-assertion": "off",
+    // Sequential awaits are intended: retries with backoff and ordered cache writes.
+    "no-await-in-loop": "off",
+    // Spreading in map keeps data immutable; the arrays involved are small.
+    "oxc/no-map-spread": "off",
+    // Effects return a cleanup only on some paths, which is how React effects work.
+    "typescript/consistent-return": "off"
+  },
+  "overrides": [
+    {
+      "files": ["e2e/**"],
+      "rules": { "react-hooks/rules-of-hooks": "off" }
+    }
+  ],
+  "ignorePatterns": ["app/dist/**", "trips/*/dist/**", "node_modules/**"]
+}

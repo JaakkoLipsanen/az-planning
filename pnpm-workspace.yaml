@@ -1,0 +1,7 @@
+allowBuilds:
+  esbuild: true
+  workerd: true
+minimumReleaseAgeExclude:
+  - maplibre-gl@6.13.0
+  - miniflare@5.20261006.0-alpha
+  - wrangler@4.148.0

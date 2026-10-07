@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="az-planning">
+  <metadata><name>American Flag TH -&gt; S Mt Lemmon Rd (OSM)</name><desc>BRouter gravel route; its ends are snapped to the AZT300 SB-XL point at the trailhead and the first Redington-Lemmon Loop point.</desc></metadata>
+  <trk><name>American Flag TH -&gt; S Mt Lemmon Rd (OSM)</name><trkseg>
+    <trkpt lat="32.582924" lon="-110.717385"><ele>1330.800000</ele></trkpt>
+    <trkpt lat="32.582903" lon="-110.717512"></trkpt>
+    <trkpt lat="32.58166" lon="-110.71717"><ele>1334.9</ele></trkpt>
+  </trkseg></trk>
+</gpx>

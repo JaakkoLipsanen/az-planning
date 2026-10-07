@@ -1,0 +1,27 @@
+.app {
+  display: grid;
+  height: 100%;
+  grid-template-rows: auto 1fr;
+  grid-template-columns: 340px 1fr;
+  grid-template-areas:
+    'head head'
+    'side main';
+}
+
+.main {
+  grid-area: main;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (max-width: 820px), (max-height: 520px) and (pointer: coarse) {
+  .app {
+    height: 100dvh;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'head'
+      'main';
+  }
+}

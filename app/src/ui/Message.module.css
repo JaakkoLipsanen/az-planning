@@ -1,0 +1,12 @@
+.message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  flex-wrap: wrap;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+  font: 500 20px var(--font-display);
+}

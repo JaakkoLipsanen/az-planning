@@ -1,0 +1,15 @@
+/sw.js
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/*/index.html
+  Cache-Control: no-cache
+/*/manifest.webmanifest
+  Content-Type: application/manifest+json
+  Cache-Control: no-cache
+/trips/*
+  Cache-Control: no-cache
+/trips/*.gpx
+  Content-Type: application/gpx+xml
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
