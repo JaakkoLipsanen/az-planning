@@ -1,4 +1,4 @@
-import type { PoiCategory } from '#shared/bundle.ts';
+import type { PoiCategory, WaterKind } from '#shared/bundle.ts';
 
 import type { PoiConfig } from '../config/schema.ts';
 
@@ -49,6 +49,15 @@ const KEYWORDS: Record<Exclude<PoiCategory, 'bike'>, string[]> = {
   ],
 };
 const CATEGORY_ORDER = ['info', 'camp', 'water', 'lodging', 'resupply'] as const;
+/** Checked in this order: a collector with a tap is still a collector, a spring with a tap is piped water. */
+const WATER_KEYWORDS: [WaterKind, string[]][] = [
+  ['collector', ['collector', 'rain catchment', 'catchment', 'cistern', 'guzzler']],
+  ['tap', ['tap', 'spigot', 'faucet', 'fountain', 'fill station', 'drinking water', 'hydrant', 'restroom']],
+  [
+    'natural',
+    ['creek', 'river', 'spring', 'tank', 'pond', 'lake', 'well', 'windmill', 'stream', 'seep', 'dam'],
+  ],
+];
 const BIKE = /\b(bike shop|bikes?|bicycles?|cycles?|cyclery|rideshop)\b/;
 const NO_BIKES = /\b(no bikes?|bikes? (are )?(not|prohibited))\b/;
 
@@ -76,10 +85,17 @@ export function waypointClassifier(extra: PoiConfig['keywords']): WaypointClassi
   };
 }
 
+/** Kind of water from a waypoint's name and description; null when nothing says. */
+export function waterKind(name: string, description: string): WaterKind | null {
+  const text = `${name} ${description}`.toLowerCase();
+  return WATER_KEYWORDS.find(([, words]) => keywordPattern(words).test(text))?.[0] ?? null;
+}
+
 export interface OsmPoi {
   category: PoiCategory;
   name: string;
   description: string;
+  water?: WaterKind;
 }
 
 function tagList(tags: Record<string, string>, keys: string[]): string {
@@ -91,7 +107,7 @@ function tagList(tags: Record<string, string>, keys: string[]): string {
 
 /** Rules for OpenStreetMap tags; in dense areas only bike shops, supermarkets, camps and water count. */
 export function classifyOsm(tags: Record<string, string>, dense: boolean): OsmPoi | null {
-  const { shop, amenity, tourism, natural, man_made: manMade, name = '' } = tags;
+  const { shop, amenity, tourism, man_made: manMade, name = '' } = tags;
   const food = ['restaurant', 'cafe', 'fast_food', 'bar', 'pub'];
   const hours = tagList(tags, ['opening_hours']);
   if (shop === 'bicycle')
@@ -153,8 +169,16 @@ export function classifyOsm(tags: Record<string, string>, dense: boolean): OsmPo
       category: 'water',
       name: name || 'Drinking water',
       description: amenity ? `OSM: ${amenity.replace('_', ' ')}` : 'OSM: water tap',
+      water: 'tap',
     };
   }
+  const wild = classifyNaturalWater(tags, dense);
+  return wild && { ...wild, water: 'natural' };
+}
+
+/** Springs, wells, tanks and ponds: water that may be dry, fenced or shared with cattle. */
+function classifyNaturalWater(tags: Record<string, string>, dense: boolean): OsmPoi | null {
+  const { natural, man_made: manMade, name = '' } = tags;
   if (natural === 'spring') {
     return {
       category: 'water',

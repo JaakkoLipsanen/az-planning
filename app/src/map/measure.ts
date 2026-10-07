@@ -9,8 +9,10 @@ const ROUTE_SNAP_M = 300;
 
 export interface MeasureSegment {
   km: number;
-  /** Distance along the final route when both ends are on it. */
+  /** Distance, climb and estimated moving time along the final route when both ends are on it. */
   routeKm: number | null;
+  climbM: number | null;
+  hours: number | null;
 }
 
 export interface Measurement {
@@ -18,6 +20,16 @@ export interface Measurement {
   totalKm: number;
   /** Route km of each point that lies on the route. */
   routeKmAt: (number | null)[];
+}
+
+/** Climb from one route km to another, in either direction. */
+export function routeClimb(model: TripModel, from: number, to: number): number {
+  const { profile } = model;
+  const [a, b] = from < to ? [from, to] : [to, from];
+  const forward = profile.climbAtKm(b) - profile.climbAtKm(a);
+  if (from < to) return forward;
+  const rise = profile.interpolate('km', b, 'ele') - profile.interpolate('km', a, 'ele');
+  return Math.max(0, forward - rise);
 }
 
 export function measure(model: TripModel, points: readonly LngLat[]): Measurement {
@@ -30,9 +42,12 @@ export function measure(model: TripModel, points: readonly LngLat[]): Measuremen
   const segments = points.slice(1).map((b, i): MeasureSegment => {
     const a = points[i];
     const [ka, kb] = [routeKmAt[i], routeKmAt[i + 1]];
+    const onRoute = ka !== null && kb !== null;
     return {
       km: haversineM(a[1], a[0], b[1], b[0]) / 1000,
-      routeKm: ka !== null && kb !== null ? Math.abs(kb - ka) : null,
+      routeKm: onRoute ? Math.abs(kb - ka) : null,
+      climbM: onRoute ? routeClimb(model, ka, kb) : null,
+      hours: onRoute ? Math.abs(model.profile.hoursAtKm(kb) - model.profile.hoursAtKm(ka)) : null,
     };
   });
   return { segments, totalKm: segments.reduce((sum, s) => sum + s.km, 0), routeKmAt };

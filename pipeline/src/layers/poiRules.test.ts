@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { classifyOsm, waypointClassifier } from './poiRules.ts';
+import { classifyOsm, waterKind, waypointClassifier } from './poiRules.ts';
 
 describe('waypointClassifier', () => {
   const classify = waypointClassifier({});
@@ -47,8 +47,25 @@ describe('classifyOsm', () => {
   });
 
   it('labels water sources by type', () => {
-    expect(classifyOsm({ natural: 'spring', name: 'Bog' }, false)?.name).toBe('Bog (spring)');
+    expect(classifyOsm({ natural: 'spring', name: 'Bog' }, false)).toMatchObject({
+      name: 'Bog (spring)',
+      water: 'natural',
+    });
     expect(classifyOsm({ man_made: 'windpump' }, false)?.name).toBe('Windmill (windpump)');
+    expect(classifyOsm({ amenity: 'drinking_water' }, true)?.water).toBe('tap');
     expect(classifyOsm({ natural: 'water' }, false)).toBeNull();
+  });
+});
+
+describe('waterKind', () => {
+  it.each([
+    ['ADOT Yard', 'Water spigot on side of fence', 'tap'],
+    ['ATA Rain Collector', 'Filter before drinking!', 'collector'],
+    ['Rain collector', 'Tap on the side of the tank', 'collector'],
+    ['Twin Stock Tanks', 'May be able to filter water', 'natural'],
+    ['Public Restrooms', '', 'tap'],
+    ['Water', '', null],
+  ] as const)('%s -> %s', (name, description, expected) => {
+    expect(waterKind(name, description)).toBe(expected);
   });
 });

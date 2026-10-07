@@ -4,8 +4,13 @@ import { decodeIntegers } from '#shared/polyline.ts';
 
 import type { SunTimes } from './sun.ts';
 
-/** Average drop in temperature with height; clear nights in valleys are often colder than this suggests. */
+/** Drop of the daily high with height, the standard atmosphere's. */
 export const LAPSE_C_PER_KM = 6.5;
+/**
+ * Drop of the daily low with height. Clear winter nights pool cold air in basins, so lows fall much less with
+ * height: against 61 Arizona stations (1991-2020 December normals) 0-3 °C/km fits, 6.5 does worst.
+ */
+export const NIGHT_LAPSE_C_PER_KM = 3;
 
 export interface Climate {
   /** Typical daily low and high in °C at the requested elevation. */
@@ -19,6 +24,19 @@ export interface Climate {
   clear: number;
   partly: number;
   cloudy: number;
+  /** One night in ten is colder and one day in ten warmer than these, °C; null in older bundles. */
+  coldNight: number | null;
+  hotDay: number | null;
+  wind: Wind | null;
+}
+
+export interface Wind {
+  /** Mean speed at 2 m and the mean eastward and northward wind, km/h. */
+  kmh: number;
+  u: number;
+  v: number;
+  /** Share of days when it reaches 25 km/h, %. */
+  windy: number;
 }
 
 interface Cell {
@@ -29,7 +47,16 @@ interface Cell {
   rain: number[];
   clear: number[];
   cloudy: number[];
+  seaColdNight: number[] | null;
+  seaHotDay: number[] | null;
+  wind: number[] | null;
+  windU: number[] | null;
+  windV: number[] | null;
+  windy: number[] | null;
 }
+
+const tenths = (encoded: string | undefined, add = 0): number[] | null =>
+  encoded === undefined ? null : decodeIntegers(encoded).map((v) => v / 10 + add);
 
 const HOUR_MS = 3_600_000;
 
@@ -42,15 +69,22 @@ export class ClimateField {
     this.layer = layer;
     for (const c of layer.cells) {
       const lift = (LAPSE_C_PER_KM * c.ele) / 1000;
+      const nightLift = (NIGHT_LAPSE_C_PER_KM * c.ele) / 1000;
       this.cells.set(
         this.key(Math.round(c.lng / layer.cellSize.lng), Math.round(c.lat / layer.cellSize.lat)),
         {
-          seaMin: decodeIntegers(c.tMin).map((v) => v / 10 + lift),
+          seaMin: decodeIntegers(c.tMin).map((v) => v / 10 + nightLift),
           seaMax: decodeIntegers(c.tMax).map((v) => v / 10 + lift),
           wet: decodeIntegers(c.wet),
           rain: decodeIntegers(c.rain).map((v) => v / 10),
           clear: decodeIntegers(c.clear),
           cloudy: decodeIntegers(c.cloudy),
+          seaColdNight: tenths(c.tMinP10, nightLift),
+          seaHotDay: tenths(c.tMaxP90, lift),
+          wind: tenths(c.wind),
+          windU: tenths(c.windU),
+          windV: tenths(c.windV),
+          windy: c.windy === undefined ? null : decodeIntegers(c.windy),
         },
       );
     }
@@ -87,18 +121,32 @@ export class ClimateField {
         const s = series(cell);
         return sum + w * (s[k0] * (1 - t) + s[k1] * t);
       }, 0) / total;
+    const optional = (series: (cell: Cell) => number[] | null): number | null =>
+      present.every(([cell]) => series(cell)) ? value((c) => series(c) ?? []) : null;
 
     const drop = (LAPSE_C_PER_KM * ele) / 1000;
+    const nightDrop = (NIGHT_LAPSE_C_PER_KM * ele) / 1000;
     const clear = value((c) => c.clear);
     const cloudy = value((c) => c.cloudy);
+    const coldNight = optional((c) => c.seaColdNight);
+    const hotDay = optional((c) => c.seaHotDay);
+    const [kmh, u, v, windy] = [
+      optional((c) => c.wind),
+      optional((c) => c.windU),
+      optional((c) => c.windV),
+      optional((c) => c.windy),
+    ];
     return {
-      tMin: value((c) => c.seaMin) - drop,
+      tMin: value((c) => c.seaMin) - nightDrop,
       tMax: value((c) => c.seaMax) - drop,
       wet: value((c) => c.wet),
       rain: value((c) => c.rain),
       clear,
       partly: Math.max(0, 100 - clear - cloudy),
       cloudy,
+      coldNight: coldNight === null ? null : coldNight - nightDrop,
+      hotDay: hotDay === null ? null : hotDay - drop,
+      wind: kmh === null || u === null || v === null || windy === null ? null : { kmh, u, v, windy },
     };
   }
 }
@@ -118,7 +166,9 @@ export function temperatureAt(tMin: number, tMax: number, sun: SunTimes, instant
   const sinceSunrise = (instant - sun.sunrise) / HOUR_MS;
   if (sinceSunrise >= LOW_LAG_H && sinceSunrise <= dayLength) return daytime(sinceSunrise);
   const sinceSunset = sinceSunrise > dayLength ? sinceSunrise - dayLength : sinceSunrise + nightLength;
-  return (
-    tMin + (daytime(dayLength) - tMin) * Math.exp((-NIGHT_DECAY * sinceSunset) / (nightLength + LOW_LAG_H))
-  );
+  // Cooling scaled to reach the low exactly when the day curve starts again, so the curve has no step.
+  const toLow = nightLength + LOW_LAG_H;
+  const floor = Math.exp(-NIGHT_DECAY);
+  const cooled = (Math.exp((-NIGHT_DECAY * sinceSunset) / toLow) - floor) / (1 - floor);
+  return tMin + (daytime(dayLength) - tMin) * cooled;
 }

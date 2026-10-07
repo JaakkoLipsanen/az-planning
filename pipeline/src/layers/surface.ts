@@ -45,14 +45,18 @@ function surfaceIndex(surface: Surface): SurfaceIndex {
 }
 
 /** OpenMapTiles transportation class -> surface: paths are singletrack, tracks are unpaved roads. */
-function classify(properties: Record<string, unknown> | null): SurfaceIndex | null {
+function classify(properties: Record<string, unknown> | null): Pick<Segment, 'surface' | 'path'> | null {
   const cls = properties?.class;
   const surface = properties?.surface;
-  if (cls === 'path')
-    return surfaceIndex(properties?.subclass === 'cycleway' || surface === 'paved' ? 'paved' : 'single');
-  if (cls === 'track') return surfaceIndex('unpaved');
+  if (cls === 'path') {
+    if (surface === 'paved') return { surface: surfaceIndex('paved'), path: false };
+    if (properties?.subclass === 'cycleway')
+      return { surface: surfaceIndex(surface === 'unpaved' ? 'unpaved' : 'paved'), path: false };
+    return { surface: surfaceIndex('single'), path: true };
+  }
+  if (cls === 'track') return { surface: surfaceIndex('unpaved'), path: false };
   if (typeof cls === 'string' && ROADS.has(cls))
-    return surfaceIndex(surface === 'unpaved' ? 'unpaved' : 'paved');
+    return { surface: surfaceIndex(surface === 'unpaved' ? 'unpaved' : 'paved'), path: false };
   return null;
 }
 
@@ -78,19 +82,22 @@ interface Segment {
   a: Position;
   b: Position;
   surface: SurfaceIndex;
+  /** An unpaved path, which a section can count as another surface. */
+  path: boolean;
 }
 
-async function matchOsmSurfaces(route: Route): Promise<Int8Array> {
+/** OpenStreetMap surface of every route point within MATCH_DISTANCE_M of a way, -1 elsewhere. */
+async function matchOsmSurfaces(route: Route, pathSurfaces: (SurfaceIndex | null)[]): Promise<Int8Array> {
   const segments: Segment[] = [];
   for (const features of await loadVectorTiles(tilesAlong(route), ['transportation'])) {
     for (const feature of features) {
-      const surface = classify(feature.properties);
-      if (surface === null) continue;
+      const kind = classify(feature.properties);
+      if (kind === null) continue;
       const g = feature.geometry;
       const lines: Position[][] =
         g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : [];
       for (const line of lines) {
-        for (let i = 1; i < line.length; i++) segments.push({ a: line[i - 1], b: line[i], surface });
+        for (let i = 1; i < line.length; i++) segments.push({ a: line[i - 1], b: line[i], ...kind });
       }
     }
   }
@@ -105,12 +112,13 @@ async function matchOsmSurfaces(route: Route): Promise<Int8Array> {
     const [x, y] = project(p.lng, p.lat);
     const { dLat, dLng } = degreesAround(MATCH_DISTANCE_M, p.lat);
     let best = MATCH_DISTANCE_M;
+    const pathSurface = pathSurfaces[route.sectionOf[i]];
     for (const id of index.search(p.lng - dLng, p.lat - dLat, p.lng + dLng, p.lat + dLat)) {
-      const { a, b, surface } = segments[id];
+      const { a, b, surface, path } = segments[id];
       const { distance } = projectOnSegment(x, y, ...project(a[0], a[1]), ...project(b[0], b[1]));
       if (distance < best) {
         best = distance;
-        matched[i] = surface;
+        matched[i] = path && pathSurface !== null ? pathSurface : surface;
       }
     }
   });
@@ -184,7 +192,10 @@ export async function classifySurfaces(route: Route, config: TripConfig): Promis
   const defaults = Uint8Array.from(route.sectionOf, (s) =>
     surfaceIndex(config.kinds[route.sections[s].config.kind].surface),
   );
-  const filled = fillGaps(await matchOsmSurfaces(route), defaults, route.cumM);
+  const pathSurfaces = route.sections.map((s) =>
+    s.config.pathSurface ? surfaceIndex(s.config.pathSurface) : null,
+  );
+  const filled = fillGaps(await matchOsmSurfaces(route, pathSurfaces), defaults, route.cumM);
   const runs = mergeShortRuns(filled, route.cumM);
   const surfaces = new Uint8Array(route.points.length);
   const totalsKm: Record<Surface, number> = { single: 0, unpaved: 0, paved: 0 };

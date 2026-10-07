@@ -1,4 +1,6 @@
 .header {
+  position: relative;
+  z-index: 30;
   grid-area: head;
   display: flex;
   align-items: baseline;

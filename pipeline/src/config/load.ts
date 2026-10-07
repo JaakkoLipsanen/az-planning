@@ -72,6 +72,12 @@ function checkReferences(config: TripConfig): string[] {
     if (repeated.length > 0) errors.push(`${what} must be unique: ${repeated.join(', ')}`);
   }
 
+  const sectionIds = new Set(config.sections.map((s) => s.id));
+  for (const n of config.notices) {
+    const unknown = (n.sections ?? []).filter((s) => !sectionIds.has(s));
+    if (unknown.length > 0) errors.push(`notice "${n.text}": unknown sections ${unknown.join(', ')}`);
+  }
+
   const basemaps = config.imagery?.basemaps ?? ['terrain'];
   if (config.imagery && !basemaps.includes(config.imagery.default))
     errors.push(`imagery.default "${config.imagery.default}" is not in imagery.basemaps`);

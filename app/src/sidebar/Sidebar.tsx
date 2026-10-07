@@ -1,13 +1,64 @@
+import { useEffect } from 'react';
+
+import { ActionButton } from '../components/ActionButton.tsx';
 import { TOUCH } from '../lib/device.ts';
-import { useTripState } from '../state/tripStore.ts';
+import { clearLinkedSettings, planLink } from '../state/shareLink.ts';
+import { defaultSettings, settingsOverrides, useTripState, useTripStore } from '../state/tripStore.ts';
 import { useTripModel } from '../trip/TripContext.tsx';
 import { TripStats } from '../ui/TripStats.tsx';
+import { ChecklistPanel } from './ChecklistPanel.tsx';
 import { ColoringPanel } from './ColoringPanel.tsx';
 import { DayPlanPanel } from './DayPlanPanel.tsx';
 import { LayerGroups } from './LayerGroups.tsx';
 import { OfflinePanel } from './OfflinePanel.tsx';
+import { SuppliesPanel } from './SuppliesPanel.tsx';
 
 import styles from './Sidebar.module.css';
+
+/** Shown after opening a shared plan link, whose settings are not saved until the user keeps them. */
+function LinkBanner() {
+  const linkUndo = useTripState((s) => s.linkUndo);
+  const closeLink = useTripState((s) => s.closeLink);
+  useEffect(() => clearLinkedSettings(), []);
+  if (linkUndo === null) return null;
+  return (
+    <div className={styles.banner} role="status">
+      Showing the plan from the link you opened.
+      <div className={styles.buttons}>
+        <button type="button" className={styles.primary} onClick={() => closeLink(false)}>
+          Keep it
+        </button>
+        <button type="button" onClick={() => closeLink(true)}>
+          Back to my settings
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** A link with these settings (day count, dates, fixed nights, layers), to open the plan on another device. */
+function ShareButton() {
+  const { bundle } = useTripModel();
+  const store = useTripStore();
+  const share = async (): Promise<string> => {
+    const url = planLink(settingsOverrides(store.getState(), defaultSettings(bundle)));
+    if (TOUCH && navigator.share) {
+      try {
+        await navigator.share({ title: `${bundle.shortName} plan`, url });
+        return '';
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return '';
+      }
+    }
+    await navigator.clipboard.writeText(url);
+    return 'Link copied.';
+  };
+  return (
+    <ActionButton title="A link that opens this trip with your plan and layers" run={share}>
+      Share plan
+    </ActionButton>
+  );
+}
 
 export function Sidebar() {
   const { bundle } = useTripModel();
@@ -46,12 +97,18 @@ export function Sidebar() {
             ×
           </button>
         </div>
+        <LinkBanner />
+        <div className={styles.share}>
+          <ShareButton />
+        </div>
         <div className={styles.mobileStats}>
           <TripStats />
         </div>
         <OfflinePanel />
         <ColoringPanel />
         <DayPlanPanel />
+        <SuppliesPanel />
+        <ChecklistPanel />
         <LayerGroups />
         <p className={styles.note}>
           {TOUCH

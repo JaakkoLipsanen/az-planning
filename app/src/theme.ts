@@ -1,4 +1,4 @@
-import type { PoiCategory, SurfaceIndex } from '#shared/bundle.ts';
+import type { PoiCategory, SurfaceIndex, WaterKind } from '#shared/bundle.ts';
 
 import type { PoiGroup } from './state/tripStore.ts';
 
@@ -40,6 +40,12 @@ export const CATEGORY_LABELS: Record<PoiCategory, string> = {
   camp: 'Camping',
   lodging: 'Lodging',
   info: 'Note',
+};
+
+export const WATER_LABELS: Record<WaterKind, string> = {
+  tap: 'tap',
+  collector: 'rain collector',
+  natural: 'natural source: may be dry, treat it',
 };
 
 export const TEMPERATURE_COLORS = {

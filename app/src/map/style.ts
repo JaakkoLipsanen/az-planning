@@ -14,6 +14,7 @@ import { temperatureTemplate } from '../climate/temperatureTiles.ts';
 import { protocolTemplate } from '../offline/tileProtocol.ts';
 import type { TripSettings } from '../state/tripStore.ts';
 import { DAY_HIGHLIGHT } from '../theme.ts';
+import { gradeFeatures } from '../trip/grade.ts';
 import type { TripModel } from '../trip/model.ts';
 import type { DayFeatures } from './dayFeatures.ts';
 import {
@@ -159,7 +160,7 @@ function sources(
   if (model.climate) {
     out[LAYERS.temperature] = {
       type: 'raster',
-      tiles: [temperatureTemplate(overlayDate(settings), settings.overlayHour)],
+      tiles: [temperatureTemplate(overlayDate(settings, model.timeZone), settings.overlayHour)],
       tileSize: 256,
       maxzoom: TILE_SOURCES.terrain.maxzoom,
       bounds: climateBounds(model.climate.layer),
@@ -177,6 +178,7 @@ function sources(
     sources: g.sources,
     alternatives: g.alternatives,
     pois: g.pois,
+    grade: gradeFeatures(model, model.grades),
     days: days.lines,
     'day-labels': days.labels,
     nights: days.nights,
@@ -236,7 +238,7 @@ export function buildStyle(
             type: 'raster',
             source: LAYERS.temperature,
             layout: { visibility: visible(settings.temperatureOverlay) },
-            paint: { 'raster-opacity': 0.6, 'raster-fade-duration': 0 },
+            paint: { 'raster-opacity': settings.overlayOpacity, 'raster-fade-duration': 0 },
           } satisfies LayerSpecification,
         ]
       : []),
@@ -440,6 +442,18 @@ export function buildStyle(
       paint: { 'line-color': routeColor(settings.colorMode), 'line-width': routeWidth, 'line-opacity': 0.95 },
     },
     {
+      id: LAYERS.routeGrade,
+      type: 'line',
+      source: 'grade',
+      filter: filters.sections(settings.hiddenSections),
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round',
+        visibility: visible(settings.colorMode === 'grade'),
+      },
+      paint: { 'line-color': ['get', 'color'], 'line-width': routeWidth, 'line-opacity': 0.95 },
+    },
+    {
       id: LAYERS.dayLines,
       type: 'line',
       source: 'days',
@@ -555,9 +569,10 @@ export function buildStyle(
         visibility: visible(settings.poiGroups.includes('plan')),
         'icon-image': 'night',
         'icon-allow-overlap': true,
+        'icon-size': zoomInterpolate([5, 0.6, 8, 0.8, 11, 1]),
         'text-field': ['get', 'label'],
         'text-font': FONT_BOLD,
-        'text-size': 12.5,
+        'text-size': zoomInterpolate([5, 8.5, 8, 11, 11, 12.5]),
         'text-allow-overlap': true,
         'text-ignore-placement': true,
       },

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { testClimate } from '../testing/testClimate.ts';
-import { ClimateField, temperatureAt } from './field.ts';
+import { ClimateField, LAPSE_C_PER_KM, NIGHT_LAPSE_C_PER_KM, temperatureAt } from './field.ts';
 import { sunTimes } from './sun.ts';
 import { zonedInstant } from './time.ts';
 
@@ -13,12 +13,13 @@ describe('ClimateField', () => {
     ]),
   );
 
-  it('adjusts temperatures to the requested elevation', () => {
+  it('adjusts temperatures to the requested elevation, lows less than highs', () => {
     const low = field.at(-110.3, 32, 0, 100);
     const high = field.at(-110.3, 32, 2000, 100);
     expect(low?.tMin).toBeCloseTo(5, 5);
     expect(low?.tMax).toBeCloseTo(20, 5);
-    expect(high?.tMin).toBeCloseTo(5 - 13, 5);
+    expect(high?.tMin).toBeCloseTo(5 - 2 * NIGHT_LAPSE_C_PER_KM, 5);
+    expect(high?.tMax).toBeCloseTo(20 - 2 * LAPSE_C_PER_KM, 5);
   });
 
   it('interpolates the other values and derives partly cloudy days', () => {
@@ -55,5 +56,15 @@ describe('temperatureAt', () => {
 
   it('changes smoothly, no faster than a desert morning warms', () => {
     for (let h = 1; h < 24; h++) expect(Math.abs(at(h) - at(h - 1))).toBeLessThan(5);
+  });
+
+  it('has no step where night turns into day or day into night', () => {
+    const minute = 60_000;
+    for (const instant of [(sun.sunrise ?? 0) - 0.17 * 3_600_000, sun.sunset ?? 0]) {
+      const before = temperatureAt(0, 20, sun, instant - minute);
+      const after = temperatureAt(0, 20, sun, instant + minute);
+      expect(Math.abs(after - before)).toBeLessThan(0.1);
+    }
+    expect(temperatureAt(0, 20, sun, (sun.sunrise ?? 0) - 0.17 * 3_600_000)).toBeCloseTo(0, 1);
   });
 });

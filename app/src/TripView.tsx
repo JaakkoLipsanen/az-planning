@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { TripBundle } from '#shared/bundle.ts';
+import { boundsOf } from '#shared/geo.ts';
 
 import { TemperatureControl } from './climate/TemperatureControl.tsx';
+import { todayIn } from './climate/time.ts';
 import { BasemapSwitcher } from './map/BasemapSwitcher.tsx';
 import { HoverMarker } from './map/HoverMarker.tsx';
 import { MapInteractions } from './map/MapInteractions.tsx';
@@ -11,24 +13,47 @@ import { MeasurePanel } from './map/MeasurePanel.tsx';
 import { PositionCard } from './map/PositionCard.tsx';
 import { useMapSync } from './map/useMapSync.ts';
 import { OfflineProvider } from './offline/OfflineContext.tsx';
+import { dayOnDate } from './plan/calendar.ts';
 import { ElevationProfile } from './profile/ElevationProfile.tsx';
 import { Sidebar } from './sidebar/Sidebar.tsx';
+import { useTripStore } from './state/tripStore.ts';
 import { loadTrip } from './trip/loadTrip.ts';
-import { TripProvider } from './trip/TripContext.tsx';
+import { TripProvider, useCalendar, usePlan, useTripModel } from './trip/TripContext.tsx';
 import { Header } from './ui/Header.tsx';
 import { Message } from './ui/Message.tsx';
 
 import styles from './TripView.module.css';
 
+/** During the trip the app opens on today's day of the plan. */
+function useTodaysDay(): void {
+  const model = useTripModel();
+  const plan = usePlan();
+  const calendar = useCalendar();
+  const store = useTripStore();
+  const checked = useRef(false);
+  useEffect(() => {
+    if (checked.current) return;
+    checked.current = true;
+    const number = calendar && dayOnDate(calendar, todayIn(model.timeZone));
+    const day = number ? plan.days[number - 1] : undefined;
+    if (!day || store.getState().selectedDay !== null) return;
+    store.getState().selectDay(day.number);
+    store.getState().moveCamera({ kind: 'bounds', bounds: boundsOf(day.coords), maxZoom: 13 });
+  }, [model, plan, calendar, store]);
+}
+
 function MapOverlays() {
   useMapSync();
+  useTodaysDay();
   return (
     <>
       <MapInteractions />
       <HoverMarker />
       <BasemapSwitcher />
-      <PositionCard />
-      <TemperatureControl />
+      <div className={styles.topCards}>
+        <PositionCard />
+        <TemperatureControl />
+      </div>
       <MeasurePanel />
     </>
   );

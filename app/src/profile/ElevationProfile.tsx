@@ -1,22 +1,37 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 
 import { temperatureAlongRoute } from '../climate/conditions.ts';
 import { TOUCH } from '../lib/device.ts';
 import { formatGrade, formatHours, formatInt, formatTemperatureRange } from '../lib/format.ts';
 import { dayProgress } from '../plan/dayPlan.ts';
+import { useSupplies } from '../plan/useSupplies.ts';
 import { useTripState, useTripStore } from '../state/tripStore.ts';
-import { SURFACE_COLORS, SURFACE_INDICES, SURFACE_LABELS, TEMPERATURE_COLORS } from '../theme.ts';
-import { usePlan, useTripModel } from '../trip/TripContext.tsx';
+import {
+  CATEGORY_COLORS,
+  SURFACE_COLORS,
+  SURFACE_INDICES,
+  SURFACE_LABELS,
+  TEMPERATURE_COLORS,
+} from '../theme.ts';
+import { GRADE_CLASSES } from '../trip/grade.ts';
+import { useCalendar, usePlan, useTripModel } from '../trip/TripContext.tsx';
 import {
   daysOfSamples,
   drawProfile,
   profileColors,
   sampleAtX,
   type ProfileColors,
+  type ProfileMark,
   type TemperatureSeries,
 } from './drawProfile.ts';
 
 import styles from './ElevationProfile.module.css';
+
+/** Keyboard steps along the profile, km (Shift for the larger one). */
+const KEY_STEP_KM = 1;
+const KEY_STEP_LARGE_KM = 10;
+/** Room on each side of a zoomed-in day, as a share of its length. */
+const DAY_MARGIN = 0.04;
 
 /** Theme colours for the canvas, re-read when the system colour scheme changes. */
 function useProfileColors(): ProfileColors {
@@ -96,6 +111,7 @@ export function ElevationProfile() {
   const collapsed = useTripState((s) => s.profileCollapsed);
   const mode = useTripState((s) => s.profileMode);
   const startDate = useTripState((s) => s.startDate);
+  const calendar = useCalendar();
   const update = useTripState((s) => s.update);
   const canvas = useRef<HTMLCanvasElement>(null);
   const { width, height } = useElementSize(canvas);
@@ -104,10 +120,30 @@ export function ElevationProfile() {
   const hoverIndex = hover?.profileIndex ?? null;
   const canShowTemperature = Boolean(model.climate && model.bundle.plan);
   const temperature = useMemo(
-    () => (canShowTemperature && startDate ? temperatureAlongRoute(model, dayOfSample, startDate) : null),
-    [model, dayOfSample, startDate, canShowTemperature],
+    () => (canShowTemperature && calendar ? temperatureAlongRoute(model, dayOfSample, calendar.dates) : null),
+    [model, dayOfSample, calendar, canShowTemperature],
   );
   const showTemperature = mode === 'temperature' && temperature !== null;
+  const dayZoom = useTripState((s) => s.profileDayZoom);
+  const zoomedDay = dayZoom && selectedDay !== null ? plan.days[selectedDay - 1] : undefined;
+  const range = useMemo((): [number, number] => {
+    if (!zoomedDay) return [0, model.profile.totalKm];
+    const margin = zoomedDay.km * DAY_MARGIN;
+    return [
+      Math.max(0, zoomedDay.startKm - margin),
+      Math.min(model.profile.totalKm, zoomedDay.endKm + margin),
+    ];
+  }, [zoomedDay, model]);
+  const supplies = useSupplies();
+  const marks = useMemo(
+    (): ProfileMark[] => [
+      ...supplies.waterStops
+        .filter((s) => s.poi.category === 'water')
+        .map((s) => ({ km: s.km, color: CATEGORY_COLORS.water })),
+      ...supplies.foodStops.map((s) => ({ km: s.km, color: CATEGORY_COLORS.resupply })),
+    ],
+    [supplies],
+  );
 
   useEffect(() => {
     if (canvas.current && !collapsed) {
@@ -118,8 +154,11 @@ export function ElevationProfile() {
         bundle: model.bundle,
         profile: model.profile,
         plan,
+        range,
         colorMode,
         dayOfSample,
+        grades: model.grades,
+        marks,
         selectedDay,
         hoverIndex,
         gpsKm,
@@ -129,6 +168,8 @@ export function ElevationProfile() {
   }, [
     model,
     plan,
+    range,
+    marks,
     colorMode,
     dayOfSample,
     selectedDay,
@@ -146,17 +187,41 @@ export function ElevationProfile() {
     const el = canvas.current;
     if (!el) return null;
     const rect = el.getBoundingClientRect();
-    const index = sampleAtX(model.profile, clientX - rect.left, rect.width);
-    store.getState().setHover({ profileIndex: index, position: model.profile.lngLatAt(index), extras: [] });
+    const index = sampleAtX(model.profile, clientX - rect.left, rect.width, range);
+    hoverIndexAt(index);
     return index;
   };
+  const hoverIndexAt = (index: number): void => {
+    store.getState().setHover({ profileIndex: index, position: model.profile.lngLatAt(index), extras: [] });
+  };
 
+  const showOnMap = (index: number): void => {
+    const { selectDay, moveCamera } = store.getState();
+    if (model.bundle.plan && !zoomedDay) selectDay(dayOfSample[index]);
+    moveCamera({ kind: 'center', center: model.profile.lngLatAt(index), minZoom: 12 });
+  };
   const onClick = (clientX: number): void => {
     const index = hoverAt(clientX);
-    if (index === null) return;
-    const { selectDay, moveCamera } = store.getState();
-    if (model.bundle.plan) selectDay(dayOfSample[index]);
-    moveCamera({ kind: 'center', center: model.profile.lngLatAt(index), minZoom: 12 });
+    if (index !== null) showOnMap(index);
+  };
+  const onKeyDown = (e: KeyboardEvent): void => {
+    const km = model.profile.data.km;
+    const current = hoverIndex ?? model.profile.indexAt('km', range[0]);
+    const step = e.shiftKey ? KEY_STEP_LARGE_KM : KEY_STEP_KM;
+    const moves: Record<string, () => number> = {
+      ArrowRight: () => model.profile.indexAt('km', Math.min(range[1], km[current] + step)),
+      ArrowLeft: () => model.profile.indexAt('km', Math.max(range[0], km[current] - step)),
+      Home: () => model.profile.indexAt('km', range[0]),
+      End: () => model.profile.indexAt('km', range[1]),
+    };
+    if (moves[e.key]) {
+      e.preventDefault();
+      hoverIndexAt(moves[e.key]());
+    } else if (e.key === 'Enter' && hoverIndex !== null) {
+      showOnMap(hoverIndex);
+    } else if (e.key === 'Escape') {
+      store.getState().setHover(null);
+    }
   };
 
   const what =
@@ -167,12 +232,16 @@ export function ElevationProfile() {
       : `${what} of the final route. ${TOUCH ? 'Drag along it to locate, tap to zoom there.' : 'Hover to locate, click to zoom there.'}`;
   return (
     <div
-      className={`${styles.wrap} ${collapsed ? styles.collapsed : ''} ${canShowTemperature ? styles.withModes : ''}`}
+      className={`${styles.wrap} ${collapsed ? styles.collapsed : ''} ${canShowTemperature ? styles.withModes : ''} ${selectedDay !== null ? styles.withZoom : ''}`}
     >
       <canvas
         ref={canvas}
         className={styles.canvas}
         data-testid="elevation-profile"
+        tabIndex={0}
+        aria-label={`${what}. Arrow keys move along the route (Shift for 10 km), Enter shows the point on the map.`}
+        onKeyDown={onKeyDown}
+        onBlur={() => store.getState().setHover(null)}
         onMouseMove={(e) => hoverAt(e.clientX)}
         onMouseLeave={() => store.getState().setHover(null)}
         onClick={(e) => onClick(e.clientX)}
@@ -194,6 +263,16 @@ export function ElevationProfile() {
           </span>
         </div>
       )}
+      {!showTemperature && colorMode === 'grade' && hoverIndex === null && width > 560 && !collapsed && (
+        <div className={styles.legend}>
+          {GRADE_CLASSES.map((c) => (
+            <span key={c.label}>
+              <i style={{ background: c.color }} />
+              {c.label}
+            </span>
+          ))}
+        </div>
+      )}
       {!showTemperature && colorMode === 'surface' && hoverIndex === null && width > 560 && !collapsed && (
         <div className={styles.legend}>
           {SURFACE_INDICES.map((s) => (
@@ -203,6 +282,19 @@ export function ElevationProfile() {
             </span>
           ))}
         </div>
+      )}
+      {selectedDay !== null && !collapsed && (
+        <button
+          type="button"
+          className={styles.zoom}
+          aria-label={
+            dayZoom ? 'Show the whole route in the profile' : `Show only day ${selectedDay} in the profile`
+          }
+          onClick={() => update({ profileDayZoom: !dayZoom })}
+          data-testid="profile-zoom"
+        >
+          {dayZoom ? 'All days' : `Day ${selectedDay}`}
+        </button>
       )}
       {canShowTemperature && !collapsed && (
         <div className={styles.modes} role="radiogroup" aria-label="Profile shows">

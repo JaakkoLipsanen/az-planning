@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { TILE_SOURCES, type TileSourceId } from '#shared/basemaps.ts';
-import { POI_CATEGORIES, SURFACES } from '#shared/bundle.ts';
+import { POI_CATEGORIES, SURFACES, WATER_KINDS } from '#shared/bundle.ts';
 
 const color = z.string().regex(/^#[0-9a-f]{6}$/i, 'expected a #rrggbb colour');
 const id = z.union([z.string(), z.number()]).transform(String);
@@ -67,6 +67,8 @@ const section = z
     reverse: z.boolean().default(false),
     parts: z.array(trackSlice).min(1).optional(),
     speed: z.strictObject({ kmh: z.number().positive(), climbRate: z.number().positive() }).optional(),
+    /** Surface of OpenStreetMap paths in this section; singletrack by default, unpaved for canal banks and the like. */
+    pathSurface: z.enum(SURFACES).optional(),
   })
   .refine((s) => (s.track === undefined) !== (s.parts === undefined), 'a section needs either track or parts')
   .transform(({ track: trackKey, range, reverse, parts, ...rest }) => ({
@@ -86,19 +88,30 @@ const alternative = z.strictObject({
 });
 
 const poiCategory = z.enum(POI_CATEGORIES);
+const waterKind = z.enum(WATER_KINDS);
+const link = z.strictObject({ label: z.string(), url: z.url() });
 
 const pois = z.strictObject({
   note: z.string().optional(),
-  link: z.strictObject({ label: z.string(), url: z.url() }).optional(),
+  link: link.optional(),
   waypointMaxDistanceM: z.number().positive().default(2500),
   onRouteDistanceM: z.number().positive().default(800),
   gpxMaxDistanceM: z.number().positive().default(400),
   keywords: z.partialRecord(poiCategory, z.array(z.string())).default({}),
   categoryOverrides: z.record(z.string(), poiCategory).default({}),
   descriptionAppend: z.record(z.string(), z.string()).default({}),
+  /** Kind of water by point name, where the keywords get it wrong or find nothing. */
+  waterKinds: z.record(z.string(), waterKind).default({}),
   custom: z
     .array(
-      point.extend({ name: z.string(), category: poiCategory, description: z.string().default('') }).strict(),
+      point
+        .extend({
+          name: z.string(),
+          category: poiCategory,
+          description: z.string().default(''),
+          water: waterKind.optional(),
+        })
+        .strict(),
     )
     .default([]),
   osm: z
@@ -142,6 +155,26 @@ const offlinePack = z
     const { minzoom, maxzoom } = TILE_SOURCES[p.source];
     return [...p.radiusKm.keys()].every((zoom) => zoom >= minzoom && zoom <= maxzoom);
   }, 'radiusKm has zoom levels the tile source does not serve');
+
+const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+/** A note for parts of the route on some dates; every condition given must hold. */
+const notice = z
+  .strictObject({
+    text: z.string(),
+    /** Where it applies: whole sections, or the route where it passes a point. */
+    sections: z.array(id).min(1).optional(),
+    at: point.optional(),
+    months: z.array(z.int().min(1).max(12)).min(1).optional(),
+    weekdays: z
+      .array(z.enum(WEEKDAYS))
+      .min(1)
+      .transform((days) => days.map((d) => WEEKDAYS.indexOf(d)))
+      .optional(),
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
+  })
+  .refine((n) => (n.sections === undefined) !== (n.at === undefined), 'a notice needs either sections or at');
 
 export const tripConfigSchema = z.strictObject({
   title: z.string(),
@@ -197,6 +230,8 @@ export const tripConfigSchema = z.strictObject({
         .refine(([first, last]) => first <= last, 'expected [first year, last year]'),
     })
     .optional(),
+  notices: z.array(notice).default([]),
+  checklist: z.array(z.strictObject({ text: z.string(), link: link.optional() })).default([]),
   gpx: z
     .strictObject({
       baseName: z.string().optional(),
@@ -214,3 +249,4 @@ export type TrackSlice = SectionConfig['parts'][number];
 export type AlternativeConfig = TripConfig['alternatives'][number]['items'][number];
 export type PoiConfig = NonNullable<TripConfig['pois']>;
 export type OfflinePackConfig = NonNullable<TripConfig['offline']>['packs'][number];
+export type NoticeConfig = TripConfig['notices'][number];

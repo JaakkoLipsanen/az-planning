@@ -19,7 +19,9 @@ import { MapPopup } from './MapPopup.tsx';
 import styles from './MapInteractions.module.css';
 
 const HOVER_PAD_PX = 8;
-const CLICK_PAD_PX = 5;
+/** How close a click must be to a line; fingers are less precise than a mouse. */
+const CLICK_PAD_PX = TOUCH ? 14 : 5;
+const ROUTE_CLICK_PAD_PX = TOUCH ? 12 : 4;
 /** Slack for the distance between the pointer and the nearest profile sample (samples are ~100 m apart). */
 const SAMPLE_SLACK_M = 60;
 
@@ -96,6 +98,7 @@ function hoverAt(map: MapLibreMap, model: TripModel, store: TripStore, e: MapMou
   if (!onRoute && others.length === 0) return null;
   const extras: HoverExtra[] = others.map(({ line, snap }) => ({
     kind: 'line',
+    id: line.track.id,
     name: shortName(line.track.name),
     km: snap.km,
     totalKm: line.track.km,
@@ -132,7 +135,7 @@ function clickAt(
     return { lngLat: anchor ? [anchor.lng, anchor.lat] : at, selection, land: null };
   }
   const land = look.land(at);
-  const routeFeature = look.route(e.point, 4);
+  const routeFeature = look.route(e.point, ROUTE_CLICK_PAD_PX);
   const lineIds = look.otherLines(e.point, CLICK_PAD_PX);
   if (lineIds.length > 0 && !routeFeature)
     return { lngLat: at, selection: { kind: 'line', id: lineIds[0] }, land };
@@ -259,6 +262,17 @@ export function MapInteractions() {
       });
     };
 
+    /** Popups asked for outside the map, such as search results. */
+    const unsubscribe = store.subscribe((state, previous) => {
+      const { focus } = state;
+      if (!focus || focus === previous.focus) return;
+      const target = focus.kind === 'poi' ? model.pois[focus.index] : plan.nights[focus.index];
+      if (!target) return;
+      const selection: Selection = { kind: focus.kind, index: focus.index };
+      setPopup({ lngLat: [target.lng, target.lat], selection, land: null });
+      map.easeTo({ center: [target.lng, target.lat], zoom: Math.max(map.getZoom(), 13), duration: 600 });
+    });
+
     // Phones send a mousemove before every tap, which would add hover labels on top of the tap's popup.
     if (!TOUCH) {
       map.on('mousemove', onMove);
@@ -267,6 +281,7 @@ export function MapInteractions() {
     map.on('click', onClick);
     return () => {
       cancelAnimationFrame(frame);
+      unsubscribe();
       map.off('mousemove', onMove);
       map.off('mouseout', onOut);
       map.off('click', onClick);

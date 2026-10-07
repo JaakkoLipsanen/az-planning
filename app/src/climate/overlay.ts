@@ -7,13 +7,16 @@ import type { TripModel } from '../trip/model.ts';
 import { elevationAt } from './elevation.ts';
 import { temperatureAt } from './field.ts';
 import { sunTimes } from './sun.ts';
-import { zonedInstant } from './time.ts';
+import { todayIn, zonedInstant } from './time.ts';
 
 type OverlaySettings = Pick<TripSettings, 'overlayDate' | 'startDate' | 'overlayHour'>;
 
-/** The date the temperature overlay shows: chosen for it, else the trip's start date, else today. */
-export function overlayDate(settings: Pick<TripSettings, 'overlayDate' | 'startDate'>): string {
-  return settings.overlayDate ?? settings.startDate ?? new Date().toISOString().slice(0, 10);
+/** The date the temperature overlay shows: chosen for it, else the trip's start date, else today there. */
+export function overlayDate(
+  settings: Pick<TripSettings, 'overlayDate' | 'startDate'>,
+  timeZone: string,
+): string {
+  return settings.overlayDate ?? settings.startDate ?? todayIn(timeZone);
 }
 
 /** The area the climate grid covers, so the map requests overlay tiles only there. */
@@ -47,7 +50,7 @@ export async function temperatureHere(
   if (!model.climate) return null;
   const ele = await elevationAt(lng, lat, zoom);
   if (ele === null) return null;
-  const date = overlayDate(settings);
+  const date = overlayDate(settings, model.timeZone);
   const c = model.climate.at(lng, lat, Math.max(0, ele), dayOfYear(date));
   if (!c) return null;
   const instant = zonedInstant(date, settings.overlayHour, model.timeZone);

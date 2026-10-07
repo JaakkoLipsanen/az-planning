@@ -25,7 +25,10 @@ const tileHosts = (kind: 'raster' | 'dem'): Set<string> =>
 const RASTER_HOSTS = tileHosts('raster');
 const DEM_HOSTS = tileHosts('dem');
 
-const BENIGN = [/GPU stall/, /Geolocation support is not available/];
+/** The National Weather Service; tests that want a forecast serve one themselves. */
+export const WEATHER_HOST = 'api.weather.gov';
+
+const BENIGN = [/GPU stall/, /Geolocation support is not available/, /status of 404/];
 
 export const test = base.extend<{ consoleErrors: string[] }>({
   consoleErrors: async ({ page }, use) => {
@@ -46,11 +49,33 @@ export const test = base.extend<{ consoleErrors: string[] }>({
       (url) => DEM_HOSTS.has(url.host),
       (route) => route.fulfill({ body: DEM_TILE, contentType: 'image/png' }),
     );
+    await page.route(
+      (url) => url.host === WEATHER_HOST,
+      (route) => route.fulfill({ status: 404, json: {} }),
+    );
     await use(page);
   },
 });
 
 export { expect };
+
+/** Makes tile requests fail as they do without a network; routed requests ignore the offline setting. */
+export async function failTiles(page: Page): Promise<void> {
+  await page.route(
+    (url) => RASTER_HOSTS.has(url.host) || DEM_HOSTS.has(url.host),
+    (route) => route.abort('internetdisconnected'),
+  );
+}
+
+/** Serves one tile URL in its own colour, to tell where the map takes a tile from. */
+export async function serveTileColor(
+  page: Page,
+  url: string,
+  [r, g, b]: [number, number, number],
+): Promise<void> {
+  const tile = solidPng(r, g, b);
+  await page.route(url, (route) => route.fulfill({ body: tile, contentType: 'image/png' }));
+}
 
 export const map = (page: Page) => page.getByTestId('map');
 

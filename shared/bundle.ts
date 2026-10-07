@@ -13,6 +13,10 @@ export type SurfaceIndex = 0 | 1 | 2;
 export const POI_CATEGORIES = ['water', 'resupply', 'bike', 'camp', 'lodging', 'info'] as const;
 export type PoiCategory = (typeof POI_CATEGORIES)[number];
 
+/** Piped water, a rain collector or cistern, or a natural source (creek, spring, tank) that may be dry. */
+export const WATER_KINDS = ['tap', 'collector', 'natural'] as const;
+export type WaterKind = (typeof WATER_KINDS)[number];
+
 /** Everything the app knows about a trip, written by the pipeline to trips/<slug>/dist/trip.json. */
 export interface TripBundle {
   schemaVersion: number;
@@ -44,6 +48,10 @@ export interface TripBundle {
   imagery?: ImagerySettings;
   offline?: OfflineSettings;
   climate?: ClimateLayer;
+  /** Notes that apply to parts of the route on some dates, such as seasonal closures. */
+  notices?: Notice[];
+  /** Things to arrange before the trip: permits, fees, road status. */
+  checklist?: ChecklistItem[];
   files?: TripFiles;
 }
 
@@ -124,7 +132,14 @@ export interface Poi {
   osm?: boolean;
   /** Route km of the nearest route point, when the point is close to the route. */
   km?: number;
+  /** Route km of every pass, when the route goes by more than once. */
+  kms?: number[];
+  /** Distance to the nearest route point. */
   offRouteM?: number;
+  /** What kind of water a water point has, when known. */
+  water?: WaterKind;
+  /** Opening hours in OpenStreetMap syntax. */
+  hours?: string;
 }
 
 export interface PoiLayer {
@@ -260,6 +275,32 @@ export interface ClimateCell {
   /** Share of clear and of cloudy days, %; the rest are partly cloudy. */
   clear: string;
   cloudy: string;
+  /** 10th percentile of the daily lows and 90th of the highs, °C x 10. */
+  tMinP10?: string;
+  tMaxP90?: string;
+  /** Mean wind speed at 2 m and the mean eastward and northward wind, km/h x 10. */
+  wind?: string;
+  windU?: string;
+  windV?: string;
+  /** Share of days when the wind reaches 25 km/h, %. */
+  windy?: string;
+}
+
+export interface Notice {
+  text: string;
+  /** Route km ranges the notice applies to. */
+  kms: [from: number, to: number][];
+  /** Months (1-12) and weekdays (0 = Sunday) it applies on; any day when missing. */
+  months?: number[];
+  weekdays?: number[];
+  /** First and last date it applies on (YYYY-MM-DD), inclusive. */
+  from?: string;
+  to?: string;
+}
+
+export interface ChecklistItem {
+  text: string;
+  link?: { label: string; url: string };
 }
 
 export interface TripFiles {

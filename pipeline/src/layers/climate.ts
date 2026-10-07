@@ -10,9 +10,11 @@ import { POWER_CELL, powerDaily, type PowerDay } from '../net/power.ts';
 /** Days on each side of a week's centre that count towards it; wider than a week to smooth year-to-year noise. */
 const WINDOW_DAYS = 7;
 const WET_DAY_MM = 1;
+const WINDY_KMH = 25;
+const MS_TO_KMH = 3.6;
 const CLEAR_BELOW = 25;
 const CLOUDY_ABOVE = 75;
-const SOURCE = 'NASA POWER (MERRA-2 temperature and precipitation, CERES cloud cover)';
+const SOURCE = 'NASA POWER (MERRA-2 temperature, precipitation and wind, CERES cloud cover)';
 
 function cellCentre(lng: number, lat: number): LngLat {
   return [
@@ -41,6 +43,13 @@ const mean = (values: readonly number[]): number => values.reduce((s, v) => s + 
 const share = (days: readonly PowerDay[], test: (d: PowerDay) => boolean): number =>
   Math.round((100 * days.filter(test).length) / (days.length || 1));
 
+/** The value below which a share (0-1) of the values lie; the nearest rank. */
+function quantile(values: readonly number[], q: number): number {
+  if (values.length === 0) return 0;
+  const sorted = values.toSorted((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))))];
+}
+
 /** Weekly climate of one cell from its daily record. */
 export function weeklyClimate(days: readonly PowerDay[]): Omit<ClimateCell, 'lat' | 'lng' | 'ele'> {
   const byDay = Array.from({ length: 365 }, (): PowerDay[] => []);
@@ -57,6 +66,24 @@ export function weeklyClimate(days: readonly PowerDay[]): Omit<ClimateCell, 'lat
     rain: series((w) => mean(w.map((d) => d.rain)) * 10),
     clear: series((w) => share(w, (d) => d.cloud < CLEAR_BELOW)),
     cloudy: series((w) => share(w, (d) => d.cloud > CLOUDY_ABOVE)),
+    tMinP10: series(
+      (w) =>
+        quantile(
+          w.map((d) => d.tMin),
+          0.1,
+        ) * 10,
+    ),
+    tMaxP90: series(
+      (w) =>
+        quantile(
+          w.map((d) => d.tMax),
+          0.9,
+        ) * 10,
+    ),
+    wind: series((w) => mean(w.map((d) => d.wind)) * MS_TO_KMH * 10),
+    windU: series((w) => mean(w.map((d) => d.windU)) * MS_TO_KMH * 10),
+    windV: series((w) => mean(w.map((d) => d.windV)) * MS_TO_KMH * 10),
+    windy: series((w) => share(w, (d) => d.windMax * MS_TO_KMH >= WINDY_KMH)),
   };
 }
 

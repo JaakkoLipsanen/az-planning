@@ -14,6 +14,8 @@ function year(y: number, day: (doy: number) => Omit<PowerDay, 'date'>): PowerDay
   return out;
 }
 
+const CALM = { wind: 2, windMax: 4, windU: 0, windV: 0 };
+
 describe('weeklyClimate', () => {
   it('averages temperatures and counts wet, clear and cloudy days per week', () => {
     const days = [2023, 2024].flatMap((y) =>
@@ -22,6 +24,7 @@ describe('weeklyClimate', () => {
         tMax: doy < 182 ? 10 : 30,
         rain: doy % 4 === 0 ? 5 : 0,
         cloud: doy % 2 === 0 ? 10 : 90,
+        ...CALM,
       })),
     );
     const c = weeklyClimate(days);
@@ -30,6 +33,28 @@ describe('weeklyClimate', () => {
     expect(decodeIntegers(c.wet)[10]).toBeGreaterThan(20);
     expect(decodeIntegers(c.wet)[10]).toBeLessThan(30);
     expect(decodeIntegers(c.clear)[10] + decodeIntegers(c.cloudy)[10]).toBe(100);
+  });
+
+  it('keeps the cold nights, hot days and the prevailing wind', () => {
+    const days = [2023, 2024].flatMap((y) =>
+      year(y, (doy) => ({
+        tMin: doy % 10 === 0 ? -10 : 0,
+        tMax: doy % 10 === 0 ? 40 : 20,
+        rain: 0,
+        cloud: 0,
+        wind: 5,
+        windMax: doy % 2 === 0 ? 10 : 5,
+        windU: 2,
+        windV: -1,
+      })),
+    );
+    const c = weeklyClimate(days);
+    expect(decodeIntegers(c.tMinP10 ?? '')[20]).toBe(-100);
+    expect(decodeIntegers(c.tMaxP90 ?? '')[20]).toBe(400);
+    expect(decodeIntegers(c.wind ?? '')[20]).toBe(180);
+    expect(decodeIntegers(c.windU ?? '')[20]).toBe(72);
+    expect(decodeIntegers(c.windV ?? '')[20]).toBe(-36);
+    expect(decodeIntegers(c.windy ?? '')[20]).toBe(50);
   });
 });
 

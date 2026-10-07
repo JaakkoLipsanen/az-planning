@@ -12,10 +12,13 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { temperatureRenderer } from '../climate/temperatureTiles.ts';
+import { todayIn } from '../climate/time.ts';
 import { isNarrow } from '../lib/device.ts';
 import { registerTileProtocol, setTileRenderer } from '../offline/tileProtocol.ts';
+import { expectedKm, rememberedKm, rememberKm } from '../plan/progress.ts';
 import { useTripState, useTripStore } from '../state/tripStore.ts';
-import { usePlan, useTripModel } from '../trip/TripContext.tsx';
+import { RouteFollower } from '../trip/profile.ts';
+import { useCalendar, usePlan, useTripModel } from '../trip/TripContext.tsx';
 import { dayFeatures } from './dayFeatures.ts';
 import { addMapIcons } from './icons.ts';
 import { MapContext } from './MapContext.ts';
@@ -110,6 +113,13 @@ export function MapView({ children }: { children: ReactNode }) {
   const store = useTripStore();
   const container = useRef<HTMLDivElement>(null);
   const initialPlan = useRef(plan);
+  const calendar = useCalendar();
+  /** Where the rider probably is before the first fix: the last position, else where the plan has them today. */
+  const firstHint = useRef<() => number | null>(() => null);
+  useEffect(() => {
+    firstHint.current = () =>
+      rememberedKm(model.bundle.slug) ?? expectedKm(plan, calendar, todayIn(model.timeZone));
+  }, [model, plan, calendar]);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   const [controls, setControls] = useState<Controls | null>(null);
   const [webgl] = useState(supportsWebGL2);
@@ -146,6 +156,7 @@ export function MapView({ children }: { children: ReactNode }) {
     instance.addControl(new NavigationControl({ visualizePitch: true }), 'top-left');
     instance.addControl(buttons.terrain, 'top-left');
     instance.addControl(buttons.measure, 'top-left');
+    const follower = new RouteFollower(model.profile);
     const geolocate = new GeolocateControl({
       positionOptions: { enableHighAccuracy: true, maximumAge: 5000, timeout: 30_000 },
       trackUserLocation: true,
@@ -154,10 +165,14 @@ export function MapView({ children }: { children: ReactNode }) {
     instance.addControl(geolocate, 'top-left');
     geolocate.on('geolocate', (e) => {
       const { gps, setGps } = store.getState();
-      const snap = model.profile.snap(e.coords.longitude, e.coords.latitude, gps?.km ?? null);
+      const { longitude: lng, latitude: lat } = e.coords;
+      if (!gps) follower.reset();
+      const snap = follower.update(lng, lat, gps?.km ?? firstHint.current());
+      if (snap.offRouteM < 1000) rememberKm(model.bundle.slug, snap.km);
       setGps({
-        lng: e.coords.longitude,
-        lat: e.coords.latitude,
+        lng,
+        lat,
+        at: e.timestamp,
         accuracyM: e.coords.accuracy,
         km: snap.km,
         offRouteM: snap.offRouteM,

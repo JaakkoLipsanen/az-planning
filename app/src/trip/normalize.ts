@@ -1,12 +1,26 @@
 import { isTileSourceId } from '#shared/basemaps.ts';
-import { POI_CATEGORIES, type PoiCategory, type TripBundle } from '#shared/bundle.ts';
+import {
+  POI_CATEGORIES,
+  WATER_KINDS,
+  type Poi,
+  type PoiCategory,
+  type TripBundle,
+  type WaterKind,
+} from '#shared/bundle.ts';
 
 const isPoiCategory = (value: string): value is PoiCategory =>
   (POI_CATEGORIES as readonly string[]).includes(value);
+const isWaterKind = (value: string): value is WaterKind => (WATER_KINDS as readonly string[]).includes(value);
+
+function knownPoi(poi: Poi): Poi {
+  const category = isPoiCategory(poi.category) ? poi.category : 'info';
+  const water = poi.water && isWaterKind(poi.water) ? poi.water : undefined;
+  return category === poi.category && water === poi.water ? poi : { ...poi, category, water };
+}
 
 /**
  * Drops what this version of the app cannot show, so an installed app keeps working with bundles built later.
- * Afterwards `imagery` is always set and every tile source and POI category is known.
+ * Afterwards `imagery` is always set and every tile source, POI category and water kind is known.
  */
 export function normalizeBundle(bundle: TripBundle): TripBundle {
   const basemaps = (bundle.imagery?.basemaps ?? []).filter(isTileSourceId);
@@ -27,9 +41,7 @@ export function normalizeBundle(bundle: TripBundle): TripBundle {
     },
     pois: bundle.pois && {
       ...bundle.pois,
-      items: bundle.pois.items.map((poi) =>
-        isPoiCategory(poi.category) ? poi : { ...poi, category: 'info' },
-      ),
+      items: bundle.pois.items.map(knownPoi),
     },
   };
 }

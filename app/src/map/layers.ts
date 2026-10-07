@@ -30,6 +30,7 @@ export const LAYERS = {
   daySelected: 'day-selected',
   routeCasing: 'route-casing',
   route: 'route',
+  routeGrade: 'route-grade',
   dayLines: 'day-lines',
   placeAreas: 'place-areas',
   placeHamletsSmall: 'place-hamlets-small',

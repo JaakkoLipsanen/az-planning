@@ -14,6 +14,7 @@ import {
   serveBundle,
   test,
   TRIP,
+  WEATHER_HOST,
 } from './fixtures.ts';
 
 const DISTANCE = `${Math.round(BUNDLE.stats.distanceKm).toLocaleString('en-US')} km`;
@@ -164,8 +165,8 @@ test('a start date adds dates, light and typical weather', async ({ page, consol
   await page.getByLabel('Start date').fill('2026-12-03');
   const first = dayCards(page).first();
   await expect(first).toContainText('Thu 3 Dec');
-  await expect(first).toContainText(/light \d\d:\d\d–\d\d:\d\d/);
-  await expect(first).toContainText(/Highs .*°C · night/);
+  await expect(first).toContainText(/ride \d\d:\d\d–\d\d:\d\d/);
+  await expect(first).toContainText(/highs .*°C · night/);
   await page.getByRole('radio', { name: '°C' }).click();
   await expect(page.getByText(/Typical daily low and high/)).toBeVisible();
   expect(consoleErrors).toEqual([]);
@@ -231,6 +232,18 @@ test.describe('on a touch phone', () => {
     expect(consoleErrors).toEqual([]);
   });
 
+  test('the position card shows the day, tonight and the next water', async ({ page, context }) => {
+    await context.grantPermissions(['geolocation']);
+    await context.setGeolocation({ latitude: BUNDLE.profile.lat[3000], longitude: BUNDLE.profile.lng[3000] });
+    await openTrip(page);
+    await page.getByRole('button', { name: /Find my location/i }).click();
+    const card = page.getByTestId('position-card');
+    await expect(card).toContainText(/Route km \d+/);
+    await expect(card).toContainText(/Day \d+ of \d+/);
+    await expect(card).toContainText(/Water: [\d.]+ km/);
+    await expect(card.getByRole('button', { name: /Sleep here tonight/ })).toBeVisible();
+  });
+
   test('tapping the map with the temperature overlay on shows the temperature there', async ({ page }) => {
     await page.addInitScript(
       ([trip]) =>
@@ -246,4 +259,116 @@ test.describe('on a touch phone', () => {
     await page.touchscreen.tap(box.x + box.width * 0.3, box.y + box.height * 0.7);
     await expect(page.locator('.maplibregl-popup')).toContainText(/Typical −?\d+ °C at 06:00/);
   });
+});
+
+test('lists the longest stretches without water and resupply', async ({ page }) => {
+  await openTrip(page);
+  const panel = page.locator('#supplies');
+  await expect(panel).toContainText('Longest without water');
+  await expect(panel.getByRole('listitem').first()).toContainText(/\d+ km · km \d+–\d+ · .*carry ~[\d.]+ l/);
+  await panel.getByLabel(/creeks, springs and tanks/).check();
+  const stored = await page.evaluate((trip) => localStorage.getItem(`trip:${trip}:settings`), TRIP);
+  expect(JSON.parse(stored ?? '{}').state).toEqual({ waterNatural: true });
+  await expect(page.locator('#checklist')).toContainText(BUNDLE.checklist?.[0].text ?? '');
+});
+
+test('search finds a point the route passes twice and shows both passes', async ({ page }) => {
+  const twice = BUNDLE.pois?.items.find((p) => p.kms && !p.osm && p.category === 'resupply');
+  if (!twice?.kms) throw new Error('the bundle has no point passed twice');
+  await openTrip(page);
+  await page.getByRole('button', { name: 'Search' }).click();
+  await page.getByRole('searchbox').fill(twice.name);
+  await page.getByRole('searchbox').press('Enter');
+  const popup = page.locator('.maplibregl-popup');
+  await expect(popup).toContainText(twice.name);
+  await expect(popup).toContainText(`route km ${twice.kms.join(' and ')}`);
+  await expect(popup.getByRole('button', { name: /^Sleep here at km/ })).toHaveCount(twice.kms.length);
+});
+
+test('a night can be fixed and followed by a rest day', async ({ page }) => {
+  await openTrip(page);
+  await page.getByLabel('Start date').fill('2026-12-03');
+  await page.getByRole('button', { name: 'Search' }).click();
+  await page.getByRole('searchbox').fill('night 3');
+  await page.getByRole('searchbox').press('Enter');
+  const popup = page.locator('.maplibregl-popup');
+  await expect(popup).toContainText(/^Night 3:/);
+  await popup.getByRole('button', { name: 'Rest day here' }).click();
+  const plan = page.locator('#day-plan');
+  await expect(plan).toContainText(`${DAYS} riding days + 1 rest day`);
+  await expect(plan).toContainText('1 night fixed by you');
+  await expect(plan.getByText(/^Rest day/)).toHaveCount(1);
+  await expect(dayCards(page).nth(3)).toContainText('Mon 7 Dec');
+  await popup.getByRole('button', { name: 'Remove the rest day' }).click();
+  await expect(plan).toContainText(`${DAYS} riding days`);
+  await expect(plan.getByText(/^Rest day/)).toHaveCount(0);
+});
+
+test('the profile zooms to the selected day and follows the arrow keys', async ({ page }) => {
+  await openTrip(page);
+  await dayCards(page).nth(2).click();
+  const zoom = page.getByRole('button', { name: 'Show the whole route in the profile' });
+  await expect(zoom).toBeVisible();
+  const profile = page.getByTestId('elevation-profile');
+  await profile.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByText(/est\. speed/)).toBeVisible();
+  await zoom.click();
+  await expect(page.getByRole('button', { name: 'Show only day 3 in the profile' })).toBeVisible();
+  await page.getByRole('radio', { name: 'Gradient' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByText('12 % and steeper').first()).toBeVisible();
+});
+
+test('a shared plan link shows its plan until the user keeps it or goes back', async ({ page }) => {
+  const encoded = Buffer.from(JSON.stringify({ days: DAYS + 2 })).toString('base64url');
+  await page.goto(`/${TRIP}/#plan=${encoded}`);
+  await mapIdle(page);
+  await expect(page.locator('header')).toContainText(`${DAYS + 2} days`);
+  await expect(page).toHaveURL(new RegExp(`/${TRIP}/$`));
+  await page.getByRole('button', { name: 'Back to my settings' }).click();
+  await expect(page.locator('header')).toContainText(`${DAYS} days`);
+  await expect(page.getByRole('status')).toHaveCount(0);
+});
+
+test('days within the next week show the weather forecast', async ({ page }) => {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: BUNDLE.timezone }).format(new Date());
+  const forecast = `https://${WEATHER_HOST}/gridpoints/TWC/1,1/forecast`;
+  await page.route(
+    (url) => url.host === WEATHER_HOST,
+    (route) =>
+      route.fulfill({
+        json: route.request().url().includes('/points/')
+          ? { properties: { forecast } }
+          : {
+              properties: {
+                periods: [
+                  {
+                    startTime: `${today}T06:00:00-07:00`,
+                    isDaytime: true,
+                    temperature: 21,
+                    probabilityOfPrecipitation: { value: 10 },
+                    windSpeed: '5 to 15 km/h',
+                    windDirection: 'NW',
+                    shortForecast: 'Sunny',
+                  },
+                  {
+                    startTime: `${today}T18:00:00-07:00`,
+                    isDaytime: false,
+                    temperature: 4,
+                    probabilityOfPrecipitation: { value: 0 },
+                    windSpeed: '5 km/h',
+                    windDirection: 'N',
+                    shortForecast: 'Clear',
+                  },
+                ],
+              },
+            },
+      }),
+  );
+  await openTrip(page);
+  await page.getByLabel('Start date').fill(today);
+  await expect(dayCards(page).first()).toContainText(
+    'Forecast: Sunny · 21 °C / 4 °C · rain 10 % · NW 5–15 km/h',
+  );
 });

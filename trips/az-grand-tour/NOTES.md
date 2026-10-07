@@ -19,8 +19,8 @@ All points taken from a source route are copied verbatim (lat/lon/ele strings un
 
 | # | Section | km | climb m | est. moving h |
 |---|---|---:|---:|---:|
-| 1 | Fool's Loop (bikepacking.com GPX, official direction) - 44th St Sky Train station to Scottsdale exit at loop km 420 | 417.7 | 6036 | 40.4 |
-| 2 | Link 1b: Scottsdale (Shea Blvd) -> Pima Rd -> Arizona Canal bank path (3.5 km dirt, SRPMIC) -> Alma School Rd -> McKellips Rd -> Center St -> McDowell Rd -> Desert Trails Park (routed on OSM/BRouter) | 33.8 | 83 | 2.0 |
+| 1 | Fool's Loop (bikepacking.com GPX, official direction) - 44th St Sky Train station to Scottsdale exit at loop km 420 | 417.7 | 6036 | 40.5 |
+| 2 | Link 1b: Scottsdale (Shea Blvd) -> Pima Rd -> Arizona Canal bank path (3.5 km dirt, SRPMIC) -> Alma School Rd -> McKellips Rd -> Center St -> McDowell Rd -> Desert Trails Park (routed on OSM/BRouter) | 33.8 | 83 | 1.9 |
 | 3 | Queen's Ransom (bikepacking.com GPX v2026.07) - Desert Trails Park / Hawes to the ADOT yard at Kelvin bridge | 220.4 | 2880 | 24.1 |
 | 4a | Link: Kelvin bridge / ADOT yard -> E Ray Junction Rd -> AZ-177 -> Kearny (Norm's IGA, Old Time Pizza) (paved, routed on OSM) | 10.6 | 197 | 0.8 |
 | 4b | Link: Kearny -> back to the Kelvin bridge the same way (paved) | 10.6 | 153 | 0.8 |

@@ -109,6 +109,8 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     });
     const onController = (): void => setAppCached(Boolean(navigator.serviceWorker?.controller));
     navigator.serviceWorker?.addEventListener('controllerchange', onController);
+    // The service worker may have taken over between the first render and this listener.
+    onController();
     return () => {
       cancelled = true;
       navigator.serviceWorker?.removeEventListener('controllerchange', onController);

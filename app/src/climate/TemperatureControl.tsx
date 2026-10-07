@@ -62,10 +62,12 @@ function RouteStats({ date, hour }: { date: string; hour: number }) {
 
 /** Date, hour and legend of the temperature overlay, shown while it is on. */
 export function TemperatureControl() {
-  const { climate } = useTripModel();
+  const model = useTripModel();
+  const { climate } = model;
   const on = useTripState((s) => s.temperatureOverlay);
-  const date = useTripState((s) => overlayDate(s));
+  const date = useTripState((s) => overlayDate(s, model.timeZone));
   const hour = useTripState((s) => s.overlayHour);
+  const opacity = useTripState((s) => s.overlayOpacity);
   const update = useTripState((s) => s.update);
   if (!on || !climate) return null;
   return (
@@ -98,6 +100,19 @@ export function TemperatureControl() {
           onChange={(e) => update({ overlayHour: Number(e.target.value) })}
         />
         <span className={styles.hour}>{String(hour).padStart(2, '0')}:00</span>
+      </label>
+      <label className={styles.row}>
+        <span className={styles.label}>Opacity</span>
+        <input
+          type="range"
+          min={0.2}
+          max={1}
+          step={0.1}
+          value={opacity}
+          aria-label="Overlay opacity"
+          onChange={(e) => update({ overlayOpacity: Number(e.target.value) })}
+        />
+        <span className={styles.hour}>{Math.round(opacity * 100)} %</span>
       </label>
       <div className={styles.scale} style={{ background: temperatureGradient() }} />
       <div className={styles.ticks}>

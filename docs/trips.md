@@ -38,7 +38,7 @@ The final route is the list of `sections`. Each takes points from a track:
   reverse: false
 ```
 
-Use `parts:` to join several slices into one section, and `speed: { kmh, climbRate }` for unusually slow stretches. A section needs at least two points. To find indices, ask for the points of a track near a location; loops and out-and-backs list one result per pass:
+Use `parts:` to join several slices into one section, and `speed: { kmh, climbRate }` for unusually slow stretches. OpenStreetMap paths count as singletrack; `pathSurface: unpaved` makes them dirt road in one section (canal banks and other wide paths). A section needs at least two points. To find indices, ask for the points of a track near a location; loops and out-and-backs list one result per pass:
 
 ```bash
 pnpm trip nearest az-grand-tour sb 32.582924,-110.717385
@@ -58,25 +58,42 @@ Under `alternatives:`, grouped. Each points at a track (optionally with a `range
 
 `pois:` combines:
 
-- waypoints of tracks that have `waypoints: { label }` (within `waypointMaxDistanceM`, or all of them with `keepAll: true`), classified by keywords and corrected with `categoryOverrides` / `descriptionAppend` (the build warns about names that match no point);
+- waypoints of tracks that have `waypoints: { label }` (within `waypointMaxDistanceM`, or all of them with `keepAll: true`), classified by keywords and corrected with `categoryOverrides` / `descriptionAppend` / `waterKinds` (the build warns about names that match no point; these do not apply to OpenStreetMap points);
 - `custom` points written for the trip;
 - OpenStreetMap shops, water, camping and lodging within `osm.radiusM` of the route; `denseAreas` limits OSM to essentials in cities.
 
 Keywords match whole words and their plurals. Generic English words are built in (`pipeline/src/layers/poiRules.ts`); place names and local chains go in `keywords`.
 
+Water points also get a kind from their name and description: `tap` (taps, spigots, fountains, restrooms), `collector` (rain collectors, cisterns) or `natural` (creeks, springs, tanks: may be dry, treat the water). Set it with `water:` on a custom point or with `waterKinds` by name. The app's water planning counts natural sources only when asked.
+
+Points near the route get the route km of every pass (towns on an out-and-back or ridden twice), so day lists and day GPX files include them on each pass.
+
 The route GPX files include the non-OSM points within `gpxMaxDistanceM` of the route. The app's day GPX files include the non-OSM points that have a route km (within `onRouteDistanceM`).
 
 ## Day plan
 
-`plan:` sets the day range (`min <= default <= max`), the long-day threshold, start and finish names and the hand-picked `overnights` (`km` disambiguates places the route passes twice). The app computes the plan itself from the profile and these stops. Without `plan`, the app shows no day plan.
+`plan:` sets the day range (`min <= default <= max`), the long-day threshold, start and finish names and the hand-picked `overnights` (`km` disambiguates places the route passes twice; the build warns about ones more than 3 km from the route). The app computes the plan itself from the profile and these stops; users can fix nights and add rest days in the app. Without `plan`, the app shows no day plan.
 
 ## Dates, daylight and typical weather
 
 - `timezone` (an IANA name such as `America/Phoenix`) sets the time zone for dates and sun times.
-- `plan.startDate` (YYYY-MM-DD) suggests a start date. Users can change it in the app; the day cards then show the date, the light from civil dawn to civil dusk and the typical weather.
-- `climate: { years: [2005, 2024] }` adds typical weather from [NASA POWER](data-sources.md#typical-weather-nasa-power) for the grid around the route. It feeds the day cards, the temperature view of the elevation profile and the temperature map overlay. It adds about 20 KB to the bundle.
+- `plan.startDate` (YYYY-MM-DD) suggests a start date. Users can change it in the app; the day cards then show the date, the riding hours against civil dusk, the moon and the typical weather, and the National Weather Service forecast for days within the next week (US only).
+- `climate: { years: [2005, 2024] }` adds typical weather from [NASA POWER](data-sources.md#typical-weather-nasa-power) for the grid around the route: lows and highs with their cold and hot extremes, rain, cloud and wind. It feeds the day cards, the water estimates, the temperature view of the elevation profile and the temperature map overlay. It adds about 30 KB to the bundle.
 
-Sun times need nothing but the date and position, so they work for every trip with a start date.
+Sun and moon times need nothing but the date and position, so they work for every trip with a start date.
+
+## Notices and checklist
+
+`notices:` are notes for parts of the route on some dates, shown on the day cards and day popups of the days that reach them:
+
+```yaml
+notices:
+  - text: 'Mt Lemmon Control Road is not maintained in winter: check the road status.'
+    sections: ['7'] # or at: { lat, lon } for the route where it passes a point
+    months: [11, 12, 1, 2, 3] # optional; also weekdays: [mon, tue], from: 2026-12-01, to: 2026-12-31
+```
+
+Without a start date the app shows every notice with when it applies. `checklist:` lists things to arrange before the trip (`text` and an optional `link: { label, url }`), shown in the sidebar.
 
 ## Offline packs
 

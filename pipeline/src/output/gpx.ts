@@ -18,7 +18,7 @@ function waypoints(pois: readonly PoiCandidate[], maxDistanceM: number): GpxWayp
       lat: p.lat,
       lng: p.lng,
       name: p.name,
-      description: `${p.description ? `${p.description} ` : ''}[${p.source}; route km ${Math.round(p.km ?? 0)}]`,
+      description: `${p.description ? `${p.description} ` : ''}[${p.source}; route km ${(p.kms ?? [p.km ?? 0]).map((km) => Math.round(km)).join(' and ')}]`,
       symbol: GPX_SYMBOLS[p.category],
       type: p.category,
     }));

@@ -109,10 +109,10 @@ async function storeTripFiles(bundle: TripBundle, signal: AbortSignal): Promise<
   const cache = await caches.open(tripFilesCache(bundle.slug));
   const tripJson = tripFileUrl(bundle.slug, 'trip.json');
   if (!(await cache.match(tripJson))) {
-    await cache.put(
-      tripJson,
-      new Response(JSON.stringify(bundle), { headers: { 'Content-Type': 'application/json' } }),
-    );
+    // The file as served, not the normalized bundle, which lacks what this app version does not know.
+    const response = await fetch(tripJson, { cache: 'no-cache', signal });
+    if (!response.ok) throw new Error(`trip.json: HTTP ${response.status}`);
+    await cache.put(tripJson, response);
   }
   const keep = new Set([new URL(tripJson, location.origin).href]);
   for (const file of versionedFiles(bundle)) {

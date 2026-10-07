@@ -9,6 +9,13 @@ import { CACHE_DIR } from '../paths.ts';
 const USER_AGENT = 'trip-planner-pipeline/1.0 (personal bikepacking trip planning)';
 const MAX_ATTEMPTS = 4;
 
+let cacheOnly = false;
+
+/** Serve every request from .cache/ (also expired entries) and fail on anything missing from it. */
+export function setCacheOnly(on: boolean): void {
+  cacheOnly = on;
+}
+
 export interface FetchOptions {
   method?: 'GET' | 'POST';
   body?: string;
@@ -77,8 +84,9 @@ async function download(url: string, options: FetchOptions): Promise<Buffer | nu
 /** HTTP request with an on-disk cache under .cache/http. Resolves to null for allowed missing resources. */
 export async function cachedFetch(url: string, options: FetchOptions = {}): Promise<Buffer | null> {
   const file = cachePath(url, options);
-  const cached = await readCached(file, options.maxAgeDays);
+  const cached = await readCached(file, cacheOnly ? undefined : options.maxAgeDays);
   if (cached !== undefined) return cached;
+  if (cacheOnly) throw new Error(`not in .cache/ (--offline): ${url.slice(0, 200)}`);
   const data = await download(url, options);
   if (data) options.validate?.(data);
   await mkdir(path.dirname(file), { recursive: true });

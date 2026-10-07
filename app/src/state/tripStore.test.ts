@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { testBundle } from '../testing/testBundle.ts';
+import { planLink } from './shareLink.ts';
 import { createTripStore, defaultSettings, sanitizeSettings, settingsOverrides } from './tripStore.ts';
 
 const KEY = 'trip:test:settings';
@@ -145,5 +146,74 @@ describe('createTripStore', () => {
     const state = createTripStore(testBundle()).getState();
     expect(state.basemap).toBe('terrain');
     expect(state.customized).toBe(true);
+  });
+});
+
+function at(hash: string): void {
+  Object.assign(globalThis, { location: { origin: 'https://maps.test', pathname: '/test/', hash } });
+}
+
+describe('shared plan links', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, 'location');
+  });
+
+  it('shows the linked settings without saving them until the user keeps them', () => {
+    storage.setItem(KEY, JSON.stringify({ state: { days: 6 }, version: 1 }));
+    at('');
+    const link = planLink({ days: 8, startDate: '2026-12-01' });
+    at(link.slice(link.indexOf('#')));
+    const store = createTripStore(testBundle());
+    expect(store.getState()).toMatchObject({ days: 8, startDate: '2026-12-01', linkUndo: { days: 6 } });
+    expect(JSON.parse(storage.getItem(KEY) ?? '').state).toEqual({ days: 6 });
+    store.getState().closeLink(false);
+    expect(JSON.parse(storage.getItem(KEY) ?? '').state).toMatchObject({ days: 8, startDate: '2026-12-01' });
+  });
+
+  it('goes back to the saved settings on undo', () => {
+    storage.setItem(KEY, JSON.stringify({ state: { days: 6 }, version: 1 }));
+    at('');
+    const link = planLink({ days: 8 });
+    at(link.slice(link.indexOf('#')));
+    const store = createTripStore(testBundle());
+    store.getState().closeLink(true);
+    expect(store.getState()).toMatchObject({ days: 6, linkUndo: null });
+  });
+
+  it('ignores links it cannot read', () => {
+    at('#plan=%%%');
+    expect(createTripStore(testBundle()).getState()).toMatchObject({ days: 4, linkUndo: null });
+  });
+});
+
+describe('pinned nights and rest days', () => {
+  it('drops pins that a new one contradicts', () => {
+    const store = createTripStore(testBundle());
+    store.getState().pinNight(1, 20);
+    store.getState().pinNight(3, 80);
+    store.getState().pinNight(2, 10);
+    expect(store.getState().pinnedNights).toEqual([
+      { night: 2, km: 10 },
+      { night: 3, km: 80 },
+    ]);
+    store.getState().pinNight(3, null);
+    expect(store.getState().pinnedNights).toEqual([{ night: 2, km: 10 }]);
+  });
+
+  it('toggles rest days', () => {
+    const store = createTripStore(testBundle());
+    store.getState().toggleRestDay(2);
+    store.getState().toggleRestDay(1);
+    expect(store.getState().restDays).toEqual([1, 2]);
+    store.getState().toggleRestDay(2);
+    expect(store.getState().restDays).toEqual([1]);
+  });
+
+  it('falls back to defaults for invalid ride times', () => {
+    const settings = sanitizeSettings(
+      { startTime: '25:00', breakPercent: -5, pinnedNights: [{ night: 0 }] },
+      testBundle(),
+    );
+    expect(settings).toEqual({});
   });
 });

@@ -14,6 +14,11 @@ export function isIsoDate(value: unknown): value is string {
   );
 }
 
+/** Today's date in a time zone. */
+export function todayIn(timeZone: string, now = Date.now()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date(now));
+}
+
 /** "Wed 9 Dec" */
 export function formatDate(date: string): string {
   return new Intl.DateTimeFormat('en-GB', {

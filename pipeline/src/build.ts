@@ -5,6 +5,7 @@ import path from 'node:path';
 import { TILE_SOURCES } from '#shared/basemaps.ts';
 import {
   BUNDLE_SCHEMA_VERSION,
+  type Notice,
   type OfflinePack,
   type PlanSettings,
   type Poi,
@@ -30,12 +31,17 @@ import { buildRouteGpx } from './output/gpx.ts';
 import { writeIcons } from './output/icons.ts';
 import { updateNotes } from './output/notes.ts';
 import { tripDistDir } from './paths.ts';
+import { passKms } from './route/passes.ts';
 import { buildProfile, type SectionTotals } from './route/profile.ts';
 import { lengthM, lngLats, stitchRoute, type Route } from './route/stitch.ts';
 
 const SECTION_TOLERANCE_M = 6;
 const OVERNIGHT_HINT_WINDOW_KM = 25;
+/** Overnights further from the route than this are probably typos. */
+const OVERNIGHT_WARN_M = 3000;
+const NOTICE_RADIUS_M = 1000;
 const REGION_MARGIN_DEG = 0.5;
+const SIZE_LOG_MIN_BYTES = 20_000;
 
 /** Each section drawn as one line per surface run; it starts at the previous section's last point so the route has no gaps. */
 function sectionParts(route: Route, runs: readonly SurfaceRun[], index: number): Section['parts'] {
@@ -96,7 +102,12 @@ function buildPlan(trip: Trip, route: Route, index: PointIndex): PlanSettings | 
         o.km === undefined
           ? index.nearest(o.lat, o.lon)
           : index.nearest(o.lat, o.lon, ...kmIndexRange(route, o.km));
-      return { name: o.name, lat: o.lat, lng: o.lon, km: round(route.cumM[near.index] / 1000, 1) };
+      const km = round(route.cumM[near.index] / 1000, 1);
+      if (near.distanceM > OVERNIGHT_WARN_M)
+        log.warn(
+          `overnight "${o.name}" is ${(near.distanceM / 1000).toFixed(1)} km from the route at km ${km}`,
+        );
+      return { name: o.name, lat: o.lat, lng: o.lon, km };
     }),
   };
 }
@@ -117,6 +128,34 @@ function buildOfflinePacks(trip: Trip, lines: LngLat[][]): OfflinePack[] {
       ...(pack.selected ? {} : { selected: false }),
     };
   });
+}
+
+function sectionKms(route: Route, id: string): [number, number] {
+  const index = route.sections.findIndex((s) => s.config.id === id);
+  const first = Math.max(0, route.sectionOf.indexOf(index) - 1);
+  const last = route.sectionOf.lastIndexOf(index);
+  return [round(route.cumM[first] / 1000, 1), round(route.cumM[last] / 1000, 1)];
+}
+
+function buildNotices(trip: Trip, route: Route, index: PointIndex): Notice[] | undefined {
+  const notices = trip.config.notices.map(({ sections, at, ...when }): Notice => {
+    const places = at ? passKms(route, index, at.lat, at.lon, NOTICE_RADIUS_M) : [];
+    const kms = sections
+      ? sections.map((id) => sectionKms(route, id))
+      : places.map((km): [number, number] => [km, km]);
+    if (kms.length === 0) log.warn(`notice "${when.text}" is not near the route`);
+    return { ...when, kms };
+  });
+  return notices.length > 0 ? notices : undefined;
+}
+
+function logSizes(json: string, bundle: object): void {
+  const parts = Object.entries(bundle)
+    .map(([key, value]) => [key, JSON.stringify(value)?.length ?? 0] as const)
+    .filter(([, size]) => size >= SIZE_LOG_MIN_BYTES)
+    .toSorted((a, b) => b[1] - a[1])
+    .map(([key, size]) => `${key} ${(size / 1e6).toFixed(2)}`);
+  log.info(`trip.json ${(json.length / 1e6).toFixed(2)} MB: ${parts.join(', ')}`);
 }
 
 function regionAround(bounds: Bounds): Bounds {
@@ -226,9 +265,12 @@ export async function buildTrip(slug: string): Promise<TripBundle> {
     },
     offline,
     climate,
+    notices: buildNotices(trip, route, routeIndex),
+    checklist: config.checklist.length > 0 ? config.checklist : undefined,
     files: { gpxFull: gpx.full.file, gpxSections: gpx.sections.file },
   };
   const json = JSON.stringify(bundle);
+  logSizes(json, bundle);
   const result: TripBundle = { ...bundle, version: contentVersion(json, gpx.full.text, gpx.sections.text) };
 
   log.step('Writing');

@@ -100,6 +100,7 @@ sections:
     name: "Link 1b: Scottsdale (Shea Blvd) -> Pima Rd -> Arizona Canal bank path (3.5 km dirt, SRPMIC) -> Alma School Rd -> McKellips Rd -> Center St -> McDowell Rd -> Desert Trails Park (routed on OSM/BRouter)"
     kind: paved
     track: scottsdale-to-desert-trails
+    pathSurface: unpaved # the Arizona Canal bank path is a wide dirt path, not singletrack
   - id: "3"
     name: Queen's Ransom (bikepacking.com GPX v2026.07) - Desert Trails Park / Hawes to the ADOT yard at Kelvin bridge
     kind: qr
@@ -379,9 +380,12 @@ pois:
     Desert Trails Park: water
   descriptionAppend:
     Kentucky Camp: " Water tap."
+  waterKinds:
+    Desert Trails Park: tap
+    Water Available at Kentucky Camp: tap
   custom:
     - { lat: 33.0589, lon: -110.9058, category: resupply, name: "Kearny: Norm's IGA, Old Time Pizza, Cosmic Coffee, Cactus Video & Market", description: "Resupply town, 10.6 km each way from the Kelvin bridge. Water fill station by the West End Cafe." }
-    - { lat: 33.0531, lon: -110.9161, category: water, name: Kearny water fill station, description: "OSM: drinking water at W End Cafe / Veterans Ave." }
+    - { lat: 33.0531, lon: -110.9161, category: water, water: tap, name: Kearny water fill station, description: "OSM: drinking water at W End Cafe / Veterans Ave." }
     - { lat: 33.0541, lon: -110.9198, category: info, name: "Kearny west bridge over the Gila: PRIVATE, keep off", description: Why the dirt shortcut west of Kearny was dropped. }
     - { lat: 32.6117475, lon: -110.7709869, category: resupply, name: Oracle Patio Cafe & Market, description: "Deli, groceries, pastries; cafes and restaurants nearby (Riot Grill, Casa Rivera's, De Marco's)." }
     - { lat: 32.6196, lon: -110.7985, category: resupply, name: "Oracle: Circle K (2000 W American Ave) and Dollar General (2406 W American Ave) - approx.", description: "Full grocery, ~2.5 km west of the Patio Market along American Ave." }
@@ -393,7 +397,7 @@ pois:
       name: "Sonoita Springs Ranch easement: the 2.8 km of AZT east of the SR-82 underpass (Canelo Hills West) cross private ranch land - open sunrise to sunset only, no camping, stay on the trail"
       description: Public AZT easement, not race-only (Trailforks / AZTR notes). The route turns off to Patagonia at the underpass and does not ride it; it only matters if you take the AZT Canelo Hills West alternative.
     - { lat: 31.595853, lon: -110.724395, category: info, name: "SR-82 underpass: Train Track Trail to Patagonia (7.5 km)", description: Start of the legacy Patagonia detour. }
-    - { lat: 33.46706, lon: -111.70053, category: water, name: "Desert Trails Park: Queen's Ransom singletrack starts here", description: Water at the park. Hawes trail system. }
+    - { lat: 33.46706, lon: -111.70053, category: water, water: tap, name: "Desert Trails Park: Queen's Ransom singletrack starts here", description: Water at the park. Hawes trail system. }
     - { lat: 33.58608, lon: -111.8822, category: info, name: "Leave the Fool's Loop here (loop km 420) for the link to the Queen's Ransom" }
     - { lat: 32.582924, lon: -110.717385, category: info, name: "American Flag TH: start of the Mt Lemmon Control Road (FR 38)", description: "Dirt climb ~38 km / +1,500 m to Summerhaven. Check winter road status (Coronado NF, Santa Catalina RD)." }
     - { lat: 33.105939, lon: -110.974067, category: water, name: ADOT yard water spigot (Kelvin bridge), description: Push-down spigot on the fence; Old Time Pizza (Kearny) delivers here. }
@@ -473,6 +477,35 @@ offline:
       label: Satellite, sharpest (zoom 16)
       source: usgs-imagery
       radiusKm: { 16: 0.5 }
+
+# Shown on the day plan when a day reaches these places on matching dates (months 1-12, weekdays sun-sat, from/to dates).
+notices:
+  - text: "Arizona Canal bank (inside the Salt River Pima-Maricopa Indian Community): if it is gated or signed no-trespassing, take link 1a (Pima Rd / Chaparral Rd, +0.8 km)."
+    sections: ["2"]
+  - text: "Mt Lemmon Control Road is not maintained in winter: check the Coronado NF (Santa Catalina RD) road status; snow and ice are possible."
+    sections: ["7"]
+    months: [11, 12, 1, 2, 3]
+  - text: "Summerhaven sits at 2,400 m: freezing nights and possible snow. Check the winter opening days of the General Store and the Cookie Cabin."
+    sections: ["8"]
+    months: [11, 12, 1, 2, 3]
+  - text: "Sunset Trail #90 (the AZT300 line from Summerhaven, an alternative here) is closed Monday to Thursday until December 2026 (AZTR detour note)."
+    at: { lat: 32.44481, lon: -110.7605 }
+    weekdays: [mon, tue, wed, thu]
+    to: 2026-12-31
+  - text: "Bug Spring Trail's upper end (~1,850 m) can hold snow after a storm: stay on the Catalina Highway to Prison Camp if so."
+    sections: [9b]
+    months: [11, 12, 1, 2, 3]
+  - text: "Parker Canyon Lake marina has limited winter hours (water and the store)."
+    at: { lat: 31.41958, lon: -110.43872 }
+    months: [11, 12, 1, 2, 3]
+
+checklist:
+  - text: "Arizona State Land Department recreational permit: the Fool's Loop and the Queen's Ransom cross State Trust land."
+  - text: "Entry fees at Usery Mountain, Lost Dutchman and San Tan parks."
+  - text: "Bookings: Lost Dutchman State Park campground, the Kentucky Camp cabin, Bumble Bee ranch camping (call ahead)."
+  - text: "Mt Lemmon Control Road status (Coronado NF, Santa Catalina Ranger District) before committing to it."
+  - text: "Springs, tanks and collectors on the Arizona Trail: check the water report."
+    link: { label: AZT Water Report (FarOut), url: "https://app.faroutguides.com/guides/Arizona%20Trail%20Water%20Report" }
 
 # Typical weather by week of the year from 20 years of daily data (sun times need `timezone` above).
 climate:

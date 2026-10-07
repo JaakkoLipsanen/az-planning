@@ -10,6 +10,7 @@ import {
   SURFACE_COLORS,
   TEMPERATURE_COLORS,
 } from '../theme.ts';
+import { GRADE_CLASSES } from '../trip/grade.ts';
 import type { RouteProfile } from '../trip/profile.ts';
 
 const PADDING = { left: 44, right: 12, top: 34, bottom: 20 };
@@ -36,6 +37,12 @@ export function profileColors(): ProfileColors {
   };
 }
 
+/** A point of interest drawn as a small tick under the profile. */
+export interface ProfileMark {
+  km: number;
+  color: string;
+}
+
 /** Typical daily low and high per profile sample; NaN where there is no data. */
 export interface TemperatureSeries {
   tMin: Float32Array;
@@ -49,8 +56,12 @@ export interface ProfileScene {
   bundle: TripBundle;
   profile: RouteProfile;
   plan: DayPlan;
+  /** The km range shown. */
+  range: [from: number, to: number];
   colorMode: ColorMode;
   dayOfSample: Int16Array;
+  grades: Uint8Array;
+  marks: readonly ProfileMark[];
   selectedDay: number | null;
   hoverIndex: number | null;
   gpsKm: number | null;
@@ -82,21 +93,34 @@ function niceAxis(lo: number, hi: number): [min: number, max: number, step: numb
   return [Math.floor(lo / step) * step, Math.ceil(hi / step) * step, step];
 }
 
-function finiteRange(...series: Float32Array[]): [number, number] {
+export function sampleAtX(
+  profile: RouteProfile,
+  x: number,
+  width: number,
+  [from, to]: [number, number],
+): number {
+  const share = Math.max(0, Math.min(1, (x - PADDING.left) / (width - PADDING.left - PADDING.right)));
+  return Math.max(0, Math.min(profile.length - 1, profile.indexAt('km', from + share * (to - from))));
+}
+
+/** Smallest and largest finite value of the series over the samples in a km range. */
+function rangeOf(
+  profile: RouteProfile,
+  [from, to]: [number, number],
+  ...series: ArrayLike<number>[]
+): [number, number] {
+  const first = Math.max(0, profile.indexAt('km', from) - 1);
+  const last = Math.min(profile.length - 1, profile.indexAt('km', to));
   let min = Infinity;
   let max = -Infinity;
-  for (const s of series) {
-    for (const v of s) {
+  for (const values of series) {
+    for (let i = first; i <= last; i++) {
+      const v = values[i];
       if (v < min) min = v;
       if (v > max) max = v;
     }
   }
   return [min, max];
-}
-
-export function sampleAtX(profile: RouteProfile, x: number, width: number): number {
-  const km = ((x - PADDING.left) / (width - PADDING.left - PADDING.right)) * profile.totalKm;
-  return Math.max(0, Math.min(profile.length - 1, profile.indexAt('km', km)));
 }
 
 export function daysOfSamples(profile: RouteProfile, plan: DayPlan): Int16Array {
@@ -125,8 +149,11 @@ function drawAxes(f: Frame, scene: ProfileScene, unit: string): void {
     ctx.fillText(`${v < 0 ? '−' : ''}${Math.abs(v)} ${unit}`, PADDING.left - 4, y(v) + 4);
   }
   ctx.textAlign = 'center';
-  const kmStep = niceStep(scene.profile.totalKm, Math.floor(w / 70));
-  for (let k = 0; k <= scene.profile.totalKm; k += kmStep) ctx.fillText(String(Math.round(k)), x(k), h - 6);
+  const [from, to] = scene.range;
+  const kmStep = niceStep(to - from, Math.floor(w / 70));
+  for (let k = Math.ceil(from / kmStep) * kmStep; k <= to; k += kmStep) {
+    ctx.fillText(String(Math.round(k * 10) / 10), x(k), h - 6);
+  }
 }
 
 function drawDayBands(f: Frame, scene: ProfileScene): void {
@@ -172,20 +199,16 @@ function drawElevation(f: Frame, scene: ProfileScene): void {
   const floor = f.axis[0];
   const sectionColor = (s: number): string =>
     bundle.kinds[bundle.sections[s]?.kind ?? '']?.color ?? '#888888';
-  const keyAt = (i: number): number =>
-    colorMode === 'surface'
-      ? profile.data.surface[i]
-      : colorMode === 'day'
-        ? dayOfSample[i]
-        : profile.data.section[i];
-  const colorOf = (key: number): string =>
-    colorMode === 'surface'
-      ? key === 2
-        ? colors.paved
-        : SURFACE_COLORS[key as SurfaceIndex]
-      : colorMode === 'day'
-        ? dayColor(key)
-        : sectionColor(key);
+  const keyAt = (i: number): number => {
+    if (colorMode === 'surface') return profile.data.surface[i];
+    if (colorMode === 'day') return dayOfSample[i];
+    return colorMode === 'grade' ? scene.grades[i] : profile.data.section[i];
+  };
+  const colorOf = (key: number): string => {
+    if (colorMode === 'surface') return key === 2 ? colors.paved : SURFACE_COLORS[key as SurfaceIndex];
+    if (colorMode === 'day') return dayColor(key);
+    return colorMode === 'grade' ? GRADE_CLASSES[key].color : sectionColor(key);
+  };
   for (let i = 0; i < profile.length;) {
     const key = keyAt(i);
     let j = i;
@@ -197,7 +220,7 @@ function drawElevation(f: Frame, scene: ProfileScene): void {
     ctx.lineTo(x(km[end]), y(floor));
     ctx.closePath();
     ctx.fillStyle = colorOf(key);
-    ctx.globalAlpha = colorMode === 'surface' ? 0.7 : 0.55;
+    ctx.globalAlpha = colorMode === 'surface' || colorMode === 'grade' ? 0.7 : 0.55;
     ctx.fill();
     ctx.globalAlpha = 1;
     i = j + 1;
@@ -254,6 +277,24 @@ function drawDayMarks(f: Frame, scene: ProfileScene): void {
   }
 }
 
+/** Water and resupply as ticks along the bottom of the plot. */
+function drawMarks(f: Frame, scene: ProfileScene): void {
+  const { ctx, x, h } = f;
+  const base = h - PADDING.bottom;
+  const [from, to] = scene.range;
+  for (const mark of scene.marks) {
+    if (mark.km < from || mark.km > to) continue;
+    const mx = x(mark.km);
+    ctx.fillStyle = mark.color;
+    ctx.beginPath();
+    ctx.moveTo(mx, base - 7);
+    ctx.lineTo(mx + 3.5, base);
+    ctx.lineTo(mx - 3.5, base);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
 function drawCursors(f: Frame, scene: ProfileScene, valueAt: (i: number) => number): void {
   const { ctx, x, y, h } = f;
   const { profile } = scene;
@@ -305,24 +346,32 @@ export function drawProfile(canvas: HTMLCanvasElement, scene: ProfileScene): voi
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
 
+  const [from, to] = scene.range;
   const axis = temperature
-    ? niceAxis(...finiteRange(temperature.tMin, temperature.tMax))
-    : niceAxis(...profile.elevationRange());
+    ? niceAxis(...rangeOf(profile, scene.range, temperature.tMin, temperature.tMax))
+    : niceAxis(...rangeOf(profile, scene.range, profile.data.ele));
   const [min, max] = axis;
+  const plotWidth = w - PADDING.left - PADDING.right;
   const f: Frame = {
     ctx,
     w,
     h,
     axis,
-    x: (km) => PADDING.left + (km / profile.totalKm) * (w - PADDING.left - PADDING.right),
+    x: (km) => PADDING.left + ((km - from) / (to - from || 1)) * plotWidth,
     y: (v) => PADDING.top + (1 - (v - min) / (max - min || 1)) * (h - PADDING.top - PADDING.bottom),
     bandTop: PADDING.top - 14,
     bandHeight: h - PADDING.top - PADDING.bottom + 14,
   };
   drawAxes(f, scene, temperature ? '°C' : 'm');
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(PADDING.left, 0, plotWidth, h);
+  ctx.clip();
   drawDayBands(f, scene);
   if (temperature) drawTemperature(f, scene, temperature);
   else drawElevation(f, scene);
+  drawMarks(f, scene);
   drawDayMarks(f, scene);
   drawCursors(f, scene, (i) => (temperature ? temperature.tMax[i] : profile.data.ele[i]));
+  ctx.restore();
 }

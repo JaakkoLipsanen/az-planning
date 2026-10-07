@@ -13,6 +13,8 @@
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
+  max-height: 45dvh;
+  overflow-y: auto;
 }
 
 .close {
@@ -38,9 +40,27 @@
 
 @media (max-width: 820px) {
   .card {
-    top: 8px;
-    right: 8px;
-    left: 60px;
+    position: relative;
+    top: auto;
+    right: auto;
     max-width: none;
   }
+}
+
+.next {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.action {
+  margin-top: 5px;
+  font: 600 12px var(--font-body);
+  color: var(--fg);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 9px;
+  cursor: pointer;
+  touch-action: manipulation;
 }

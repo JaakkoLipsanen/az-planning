@@ -1,6 +1,9 @@
+import { useCallback, useState } from 'react';
+
 import { useOffline } from '../offline/OfflineContext.tsx';
 import { useTripState } from '../state/tripStore.ts';
 import { useTripModel } from '../trip/TripContext.tsx';
+import { Search } from './Search.tsx';
 import { TripStats } from './TripStats.tsx';
 
 import styles from './Header.module.css';
@@ -11,6 +14,8 @@ export function Header() {
   const sidebarOpen = useTripState((s) => s.sidebarOpen);
   const setSidebarOpen = useTripState((s) => s.setSidebarOpen);
   const moveCamera = useTripState((s) => s.moveCamera);
+  const [searching, setSearching] = useState(false);
+  const closeSearch = useCallback(() => setSearching(false), []);
   const showOffline = (): void => {
     setSidebarOpen(true);
     document.getElementById('offline')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -33,6 +38,15 @@ export function Header() {
         <TripStats />
       </span>
       <span className={styles.spacer} />
+      <button
+        type="button"
+        className={styles.button}
+        aria-expanded={searching}
+        onClick={() => setSearching(!searching)}
+      >
+        Search
+      </button>
+      {searching && <Search onClose={closeSearch} />}
       {offline.supported && bundle.offline && (
         <button
           type="button"

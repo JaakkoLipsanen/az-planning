@@ -43,18 +43,28 @@ curl -s 'https://brouter.de/brouter?lonlats=-110.9741,33.1059|-110.9058,33.0589&
 
 ## Typical weather: NASA POWER
 
-Worldwide daily weather since the 1980s from NASA's POWER project: temperature and precipitation from the MERRA-2 reanalysis, cloud cover from CERES satellite data. Free, no key. The pipeline fetches 20 years for every grid cell near the route (cells are 0.625° of longitude by 0.5° of latitude, about 55 km) and stores weekly averages: daily low and high, share of wet days (≥ 1 mm), mean precipitation and shares of clear (< 25 % cloud) and cloudy (> 75 %) days.
+Worldwide daily weather since the 1980s from NASA's POWER project: temperature, precipitation and wind from the MERRA-2 reanalysis, cloud cover from CERES satellite data. Free, no key. The pipeline fetches 20 years for every grid cell near the route (cells are 0.625° of longitude by 0.5° of latitude, about 55 km) and stores weekly values: mean daily low and high, the 10th percentile of the lows and 90th of the highs, share of wet days (≥ 1 mm), mean precipitation, shares of clear (< 25 % cloud) and cloudy (> 75 %) days, and the wind at 2 m: mean speed, mean eastward and northward wind (the prevailing direction, and the head- or tailwind along a day) and the share of days when it reaches 25 km/h.
 
 ```bash
-curl -s 'https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MIN,T2M_MAX,PRECTOTCORR,CLOUD_AMT&community=RE&longitude=-110.625&latitude=32.5&start=20050101&end=20241231&format=JSON' \
+curl -s 'https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MIN,T2M_MAX,PRECTOTCORR,CLOUD_AMT,WS2M,WS2M_MAX,U2M,V2M&community=RE&longitude=-110.625&latitude=32.5&start=20050101&end=20241231&format=JSON' \
   | jq '.geometry.coordinates, (.properties.parameter.T2M_MAX | to_entries[:3])'
 ```
 
-The third coordinate in the response is the cell's mean elevation; temperatures refer to it. The app moves them to any elevation with 6.5 °C per km, which matters in the mountains: the cell around Mt Lemmon averages 1,178 m, Summerhaven is at 2,400 m. The data is coarse. Expect typical values within a few degrees, valleys colder on clear nights than the lapse rate suggests, and reanalysis rain falling on more days than gauges record.
+The third coordinate in the response is the cell's mean elevation; temperatures refer to it. The app moves them to any elevation, which matters in the mountains: the cell around Mt Lemmon averages 1,178 m, Summerhaven is at 2,400 m. Highs drop 6.5 °C per km and lows 3 °C per km. Against the 1991-2020 December normals of 61 NOAA stations within reach of the route, the highs are within 0.8 °C on average (0.6 °C warm). The lows are within 2.4 °C, about 2 °C warm on average: clear winter nights pool cold air in basins (Nogales 6 N, Cascabel and Catalina State Park are 5-7 °C colder than the model), while ridges stay warmer than 6.5 °C per km would make them (Mt Lemmon was 4 °C too cold with it, hence the smaller rate for lows). Plan for colder nights at camps in valley bottoms. Daily mean wind at 2 m includes calm nights, so daytime gusts are stronger than the typical speed. Reanalysis rain falls on more days than gauges record.
+
+NOAA's station normals, for checks like this one (stations from `access/services/search/v1/data?dataset=normals-monthly-1991-2020&bbox=N,W,S,E`):
+
+```bash
+curl -s 'https://www.ncei.noaa.gov/access/services/data/v1?dataset=normals-monthly-1991-2020&dataTypes=MLY-TMAX-NORMAL,MLY-TMIN-NORMAL&stations=USW00023160&format=json&units=metric' | jq '.[11]'
+```
+
+## Weather forecast: National Weather Service
+
+For planned days within the next week the app shows the forecast from `api.weather.gov` (US only, free, no key, CORS allowed): `/points/{lat},{lon}` gives the forecast URL of the grid cell (stored on the device for good), and that URL with `?units=si` gives twelve-hour periods in °C and km/h (stored for an hour, and kept for offline use). The day's period comes from the middle of the day's route and the night's from the night stop.
 
 ## Land ownership: BLM Surface Management Agency
 
-US only. ArcGIS REST service `https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_LimitedScale/MapServer/1/query`, queried as GeoJSON for the trip's `region` (see `pipeline/src/layers/land.ts` for the parameters). The `ADMIN_AGENCY_CODE` field maps to the overlay categories. The service returns at most 2,000 features per query; the build fails if a region needs more, rather than silently dropping land.
+US only. ArcGIS REST service `https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_LimitedScale/MapServer/1/query`, queried as GeoJSON for the trip's `region` (see `pipeline/src/layers/land.ts` for the parameters). The `ADMIN_AGENCY_CODE` field maps to the overlay categories. The service returns at most 2,000 features per query; larger regions are read in pages of 1,000 (`orderByFields=OBJECTID&resultOffset=…&resultRecordCount=…`).
 
 ## Map tiles in the app
 

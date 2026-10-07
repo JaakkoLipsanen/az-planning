@@ -4,7 +4,7 @@ import type { Poi } from '#shared/bundle.ts';
 
 import { KM_PER_DEGREE, testBundle as bundle } from '../testing/testBundle.ts';
 import { buildTripModel } from '../trip/model.ts';
-import { computePlan, dayAtKm, overnightCandidates } from './dayPlan.ts';
+import { computePlan, dayAtKm, overnightCandidates, usablePins } from './dayPlan.ts';
 
 function camp(km: number, osm = false): Poi {
   return {
@@ -47,5 +47,34 @@ describe('computePlan', () => {
     expect(dayAtKm(plan, 10).number).toBe(1);
     expect(dayAtKm(plan, 60).number).toBe(3);
     expect(dayAtKm(plan, 100).number).toBe(4);
+  });
+});
+
+describe('pinned nights', () => {
+  it('keeps a pinned night and splits the days on each side evenly', () => {
+    const model = buildTripModel(bundle());
+    const plan = computePlan(model, [], 4, [{ night: 1, km: 40 }]);
+    expect(plan.nights[0]).toMatchObject({ km: 40, pinned: true });
+    expect(plan.days.map((d) => Math.round(d.km))).toEqual([40, 20, 20, 20]);
+  });
+
+  it('names a pinned night after a stop there', () => {
+    const model = buildTripModel(bundle([camp(40.2)]));
+    const plan = computePlan(model, overnightCandidates(model), 4, [{ night: 2, km: 40 }]);
+    expect(plan.nights[1]).toMatchObject({ name: 'Camp 40.2', pinned: true, snapped: true });
+  });
+
+  it('ignores pins that do not fit the day count or contradict each other', () => {
+    expect(
+      usablePins(
+        [
+          { night: 3, km: 50 },
+          { night: 1, km: 60 },
+          { night: 5, km: 90 },
+        ],
+        4,
+        100,
+      ),
+    ).toEqual([{ night: 1, km: 60 }]);
   });
 });

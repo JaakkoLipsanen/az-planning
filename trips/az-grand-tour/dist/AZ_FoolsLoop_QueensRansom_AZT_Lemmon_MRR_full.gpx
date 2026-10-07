@@ -18,7 +18,7 @@
   </wpt>
   <wpt lat="33.557590" lon="-111.899420">
     <name>Several good coffee shops and cafes</name>
-    <desc>[Fool&apos;s Loop waypoint; route km 24]</desc>
+    <desc>[Fool&apos;s Loop waypoint; route km 24 and 421]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
@@ -90,7 +90,7 @@
   </wpt>
   <wpt lat="33.586080" lon="-111.882200">
     <name>Leave the Fool&apos;s Loop here (loop km 420) for the link to the Queen&apos;s Ransom</name>
-    <desc>[route notes; route km 418]</desc>
+    <desc>[route notes; route km 28 and 418]</desc>
     <sym>Information</sym>
     <type>info</type>
   </wpt>
@@ -282,25 +282,25 @@
   </wpt>
   <wpt lat="33.104410" lon="-110.973980">
     <name>Old Time Pizza (Delivery)</name>
-    <desc>Will deliver to ADOT yard. May need to order ahead when have cell service up high. [Queen&apos;s Ransom waypoint; route km 672]</desc>
+    <desc>Will deliver to ADOT yard. May need to order ahead when have cell service up high. [Queen&apos;s Ransom waypoint; route km 672 and 693]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
   <wpt lat="33.105890" lon="-110.974050">
     <name>ADOT Yard</name>
-    <desc>Water spigot on side of fence. Push down to operate. [Queen&apos;s Ransom waypoint; route km 672]</desc>
+    <desc>Water spigot on side of fence. Push down to operate. [Queen&apos;s Ransom waypoint; route km 672 and 693]</desc>
     <sym>Drinking Water</sym>
     <type>water</type>
   </wpt>
   <wpt lat="33.105940" lon="-110.974070">
     <name>ADOT</name>
-    <desc>[AZTR AZT300 SB-XL waypoint; route km 672]</desc>
+    <desc>[AZTR AZT300 SB-XL waypoint; route km 672 and 693]</desc>
     <sym>Drinking Water</sym>
     <type>water</type>
   </wpt>
   <wpt lat="33.105939" lon="-110.974067">
     <name>ADOT yard water spigot (Kelvin bridge)</name>
-    <desc>Push-down spigot on the fence; Old Time Pizza (Kearny) delivers here. [route notes; route km 672]</desc>
+    <desc>Push-down spigot on the fence; Old Time Pizza (Kearny) delivers here. [route notes; route km 672 and 693]</desc>
     <sym>Drinking Water</sym>
     <type>water</type>
   </wpt>
@@ -530,7 +530,7 @@ A unique feature of this site is its collection of five century-old adobe buildi
   </wpt>
   <wpt lat="31.540390" lon="-110.742110">
     <name>TerraSol Campground</name>
-    <desc>Great in-town camping with special regard for hikers and bikepackers. Mary the owner and host is wonderful. Make reservations at the link below. [Madrean Rugged Ramble waypoint; route km 1075]</desc>
+    <desc>Great in-town camping with special regard for hikers and bikepackers. Mary the owner and host is wonderful. Make reservations at the link below. [Madrean Rugged Ramble waypoint; route km 1075 and 1193]</desc>
     <sym>Campground</sym>
     <type>camp</type>
   </wpt>
@@ -582,19 +582,19 @@ The most relevant current conservation threat to the San Rafael Valley is mining
   </wpt>
   <wpt lat="31.539630" lon="-110.749220">
     <name>The Patagonia Museum</name>
-    <desc>[Sky Islands Odyssey East waypoint + Sky Islands Odyssey West; route km 1194]</desc>
+    <desc>[Sky Islands Odyssey East waypoint + Sky Islands Odyssey West; route km 1075 and 1194]</desc>
     <sym>Information</sym>
     <type>info</type>
   </wpt>
   <wpt lat="31.540950" lon="-110.751690">
     <name>Ovens of Patagonia</name>
-    <desc>Bread, cakes, and other delicious baked goods. [Sky Islands Odyssey East waypoint + Sky Islands Odyssey West; route km 1194]</desc>
+    <desc>Bread, cakes, and other delicious baked goods. [Sky Islands Odyssey East waypoint + Sky Islands Odyssey West; route km 1074 and 1194]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
   <wpt lat="31.541190" lon="-110.752920">
     <name>Patagonia Market</name>
-    <desc>ATM, groceries, beer, wine, and liquor | ATM, Groceries, Beer, and Liquor [Madrean Rugged Ramble waypoint + Sky Islands Odyssey East + Sky Islands Odyssey West; route km 1194]</desc>
+    <desc>ATM, groceries, beer, wine, and liquor | ATM, Groceries, Beer, and Liquor [Madrean Rugged Ramble waypoint + Sky Islands Odyssey East + Sky Islands Odyssey West; route km 1074 and 1194]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
@@ -604,31 +604,31 @@ The most relevant current conservation threat to the San Rafael Valley is mining
 
 Hours: Sat &amp; Sun: 8 am - 9 pm
 Mon &amp; Tues: Closed
-Weds - Fri: 4 - 9 pm | A small bike shop behind Patagonia Lumber Co. offering the basics and mechanical support. [Madrean Rugged Ramble waypoint + Sky Islands Odyssey East + Sky Islands Odyssey East + Sky Islands Odyssey West; route km 1194]</desc>
+Weds - Fri: 4 - 9 pm | A small bike shop behind Patagonia Lumber Co. offering the basics and mechanical support. [Madrean Rugged Ramble waypoint + Sky Islands Odyssey East + Sky Islands Odyssey East + Sky Islands Odyssey West; route km 1074 and 1194]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
   <wpt lat="31.540870" lon="-110.753400">
     <name>Restaurants</name>
-    <desc>[Madrean Rugged Ramble waypoint; route km 1194]</desc>
+    <desc>[Madrean Rugged Ramble waypoint; route km 1074 and 1194]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
   <wpt lat="31.540230" lon="-110.752310">
     <name>Patagonia Bikes</name>
-    <desc>Basic shop, follow link to check hours (but in an emergency ask at the bar at Lumber Co. to see if shop folks are around). [Madrean Rugged Ramble waypoint; route km 1194]</desc>
+    <desc>Basic shop, follow link to check hours (but in an emergency ask at the bar at Lumber Co. to see if shop folks are around). [Madrean Rugged Ramble waypoint; route km 1074 and 1194]</desc>
     <sym>Bike Trail</sym>
     <type>bike</type>
   </wpt>
   <wpt lat="31.539930" lon="-110.753400">
     <name>Gathering Grounds</name>
-    <desc>Coffee, full breakfast, pastries | Cafe serving coffee, breakfast, lunch, and ice-cream [Madrean Rugged Ramble waypoint + Sky Islands Odyssey West; route km 1194]</desc>
+    <desc>Coffee, full breakfast, pastries | Cafe serving coffee, breakfast, lunch, and ice-cream [Madrean Rugged Ramble waypoint + Sky Islands Odyssey West; route km 1074 and 1194]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
   <wpt lat="31.540150" lon="-110.752900">
     <name>Stage Stop Inn</name>
-    <desc>[Madrean Rugged Ramble waypoint; route km 1194]</desc>
+    <desc>[Madrean Rugged Ramble waypoint; route km 1074 and 1194]</desc>
     <sym>Lodging</sym>
     <type>lodging</type>
   </wpt>
@@ -636,13 +636,13 @@ Weds - Fri: 4 - 9 pm | A small bike shop behind Patagonia Lumber Co. offering th
     <name>Gathering Grounds Cafe</name>
     <desc>Coffee, Breakfast, Lunch, and Ice Cream
 
-Open Everyday 7 A.M. - 4 P.M. [Sky Islands Odyssey East waypoint; route km 1194]</desc>
+Open Everyday 7 A.M. - 4 P.M. [Sky Islands Odyssey East waypoint; route km 1074 and 1194]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
   <wpt lat="31.540170" lon="-110.752790">
     <name>Town of Patagonia</name>
-    <desc>The charming town of Patagonia serves as the start and end point of all the Sky Islands Odyssey routes. Once a supply town for nearby mines and cattle ranches, today, Patagonia is home to multigeneration ranching families, artists, conservationists, retirees, and a flurry of newcomers who are moving to the region specifically for its excellent access to trails and gravel roads. Among many of its varying hats, Patagonia serves as a trail community for Arizona Trail and the launching point for the growing popularity of gravel cycling in the San Rafael Valley. Home to local art galleries, a natural food co-op, a café, a hummingbird sanctuary, a new gathering place for cyclists, and a few places to stay, Patagonia remains a quiet desert hamlet with an eclectic vibe. [Sky Islands Odyssey East waypoint; route km 1194]</desc>
+    <desc>The charming town of Patagonia serves as the start and end point of all the Sky Islands Odyssey routes. Once a supply town for nearby mines and cattle ranches, today, Patagonia is home to multigeneration ranching families, artists, conservationists, retirees, and a flurry of newcomers who are moving to the region specifically for its excellent access to trails and gravel roads. Among many of its varying hats, Patagonia serves as a trail community for Arizona Trail and the launching point for the growing popularity of gravel cycling in the San Rafael Valley. Home to local art galleries, a natural food co-op, a café, a hummingbird sanctuary, a new gathering place for cyclists, and a few places to stay, Patagonia remains a quiet desert hamlet with an eclectic vibe. [Sky Islands Odyssey East waypoint; route km 1074 and 1194]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
@@ -650,31 +650,31 @@ Open Everyday 7 A.M. - 4 P.M. [Sky Islands Odyssey East waypoint; route km 1194]
     <name>Red Mountain Foods</name>
     <desc>Organic food market | Organic Grocery Store (cash or check only). 
 
-Hours: Sunday - Monday, 10 am - 5 pm [Madrean Rugged Ramble waypoint + Sky Islands Odyssey East + Sky Islands Odyssey West; route km 1194]</desc>
+Hours: Sunday - Monday, 10 am - 5 pm [Madrean Rugged Ramble waypoint + Sky Islands Odyssey East + Sky Islands Odyssey West; route km 1074 and 1194]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
   <wpt lat="31.539490" lon="-110.753940">
     <name>Velvet Elvis Pizza</name>
-    <desc>Pizza in a pinch | Pizza in a pinch. [Sky Islands Odyssey East waypoint + Sky Islands Odyssey West; route km 1194]</desc>
+    <desc>Pizza in a pinch | Pizza in a pinch. [Sky Islands Odyssey East waypoint + Sky Islands Odyssey West; route km 1074 and 1194]</desc>
     <sym>Shopping Center</sym>
     <type>resupply</type>
   </wpt>
   <wpt lat="31.538940" lon="-110.756020">
     <name>Public Restrooms</name>
-    <desc>[Sky Islands Odyssey East waypoint + Sky Islands Odyssey West; route km 1194]</desc>
+    <desc>[Sky Islands Odyssey East waypoint + Sky Islands Odyssey West; route km 1074 and 1194]</desc>
     <sym>Drinking Water</sym>
     <type>water</type>
   </wpt>
   <wpt lat="31.538870" lon="-110.755850">
     <name>Free Public Parking</name>
-    <desc>Do not park in front of any businesses [Sky Islands Odyssey East waypoint; route km 1194]</desc>
+    <desc>Do not park in front of any businesses [Sky Islands Odyssey East waypoint; route km 1074 and 1194]</desc>
     <sym>Information</sym>
     <type>info</type>
   </wpt>
   <wpt lat="31.538960" lon="-110.755880">
     <name>Public Parking</name>
-    <desc>Do not park in front of any businesses [Sky Islands Odyssey West waypoint; route km 1194]</desc>
+    <desc>Do not park in front of any businesses [Sky Islands Odyssey West waypoint; route km 1074 and 1194]</desc>
     <sym>Information</sym>
     <type>info</type>
   </wpt>

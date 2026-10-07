@@ -6,8 +6,9 @@ import type { PoiConfig } from '../config/schema.ts';
 import type { PointIndex } from '../geo/spatial.ts';
 import { log } from '../log.ts';
 import { overpass } from '../net/overpass.ts';
+import { passKms } from '../route/passes.ts';
 import { lngLats, type Route } from '../route/stitch.ts';
-import { classifyOsm, osmQuery, waypointClassifier } from './poiRules.ts';
+import { classifyOsm, osmQuery, waterKind, waypointClassifier } from './poiRules.ts';
 
 const MERGE_DISTANCE_M = 300;
 const QUERY_LINE_TOLERANCE_M = 200;
@@ -17,7 +18,7 @@ export interface PoiCandidate extends Poi {
   distanceM: number;
 }
 
-type Placement = Pick<PoiCandidate, 'km' | 'offRouteM' | 'distanceM'>;
+type Placement = Pick<PoiCandidate, 'km' | 'kms' | 'offRouteM' | 'distanceM'>;
 
 function normalizedName(name: string): string {
   return name
@@ -104,9 +105,9 @@ async function addOsmPois(
       description: poi.description.trim(),
       source: 'OpenStreetMap',
       osm: true,
-      km: where.km,
-      offRouteM: Math.round(where.distanceM),
-      distanceM: where.distanceM,
+      ...where,
+      water: poi.water,
+      hours: el.tags?.opening_hours,
     });
     if (isNew) added++;
   }
@@ -118,6 +119,7 @@ function applyCorrections(items: PoiCandidate[], config: PoiConfig): void {
   for (const [what, record] of [
     ['categoryOverrides', config.categoryOverrides],
     ['descriptionAppend', config.descriptionAppend],
+    ['waterKinds', config.waterKinds],
   ] as const) {
     const unknown = Object.keys(record).filter((name) => !names.has(name));
     if (unknown.length > 0) log.warn(`pois.${what} names no point: ${unknown.join(', ')}`);
@@ -126,6 +128,13 @@ function applyCorrections(items: PoiCandidate[], config: PoiConfig): void {
     poi.category = config.categoryOverrides[poi.name] ?? poi.category;
     const extra = config.descriptionAppend[poi.name];
     if (extra) poi.description = (poi.description ?? '') + extra;
+    poi.water =
+      poi.category === 'water'
+        ? (config.waterKinds[poi.name] ??
+          poi.water ??
+          waterKind(poi.name, poi.description ?? '') ??
+          undefined)
+        : undefined;
   }
 }
 
@@ -136,9 +145,11 @@ export async function collectPois(trip: Trip, route: Route, routeIndex: PointInd
   const place = (lat: number, lng: number, onRouteM = config.onRouteDistanceM): Placement => {
     const near = routeIndex.nearest(lat, lng);
     const onRoute = near.distanceM < onRouteM;
+    const kms = onRoute ? passKms(route, routeIndex, lat, lng, onRouteM) : [];
     return {
       km: onRoute ? round(route.cumM[near.index] / 1000, 1) : undefined,
-      offRouteM: onRoute ? undefined : Math.round(near.distanceM),
+      kms: kms.length > 1 ? kms : undefined,
+      offRouteM: Math.round(near.distanceM),
       distanceM: near.distanceM,
     };
   };
@@ -169,7 +180,7 @@ export async function collectPois(trip: Trip, route: Route, routeIndex: PointInd
       description: c.description || undefined,
       source: 'route notes',
       ...place(c.lat, c.lon),
-      offRouteM: undefined,
+      water: c.water,
     });
   }
   applyCorrections(list.items, config);

@@ -76,7 +76,7 @@ function Label({ hover }: { hover: Hover }) {
     <>
       {hover.profileIndex !== null && <MainRouteLines index={hover.profileIndex} />}
       {hover.extras.map((extra) => (
-        <Extra key={extra.kind === 'line' ? `line:${extra.name}` : extra.kind} extra={extra} />
+        <Extra key={extra.kind === 'line' ? `line:${extra.id}` : extra.kind} extra={extra} />
       ))}
     </>
   );

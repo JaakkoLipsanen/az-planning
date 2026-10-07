@@ -21,6 +21,7 @@ const SMA_QUERY =
 const SOURCE = 'BLM National Surface Management Agency (limited scale)';
 const MIN_AREA_M2 = 20_000;
 const MIN_HOLE_LENGTH_M = 150;
+const PAGE_SIZE = 1000;
 
 const CATEGORIES: Omit<LandCategory, 'areaKm2'>[] = [
   { id: 'blm', label: 'BLM (Bureau of Land Management)', color: '#f2d35b' },
@@ -103,14 +104,13 @@ interface SmaResponse {
   properties?: { exceededTransferLimit?: boolean };
 }
 
-function rejectTruncated(data: Buffer): void {
-  const result = JSON.parse(data.toString('utf8')) as SmaResponse;
-  if (result.exceededTransferLimit || result.properties?.exceededTransferLimit)
-    throw new Error('the BLM land query hit the server limit; use a smaller region');
+function truncated(result: SmaResponse): boolean {
+  return Boolean(result.exceededTransferLimit || result.properties?.exceededTransferLimit);
 }
 
+/** Land polygons in the region; large regions exceed the server's record limit and are read in pages. */
 async function fetchSma(region: Bounds): Promise<SmaFeature[]> {
-  const params = new URLSearchParams({
+  const query = {
     where: '1=1',
     geometry: region.join(','),
     geometryType: 'esriGeometryEnvelope',
@@ -122,11 +122,22 @@ async function fetchSma(region: Bounds): Promise<SmaFeature[]> {
     geometryPrecision: '5',
     maxAllowableOffset: '0.0002',
     f: 'geojson',
-  });
-  const result = await cachedJson<SmaResponse>(`${SMA_QUERY}?${params.toString()}`, {
-    validate: rejectTruncated,
-  });
-  return result.features;
+  };
+  const whole = await cachedJson<SmaResponse>(`${SMA_QUERY}?${new URLSearchParams(query).toString()}`);
+  if (!truncated(whole)) return whole.features;
+  log.info('the land query exceeds the server limit; reading it in pages');
+  const features: SmaFeature[] = [];
+  for (;;) {
+    const page = new URLSearchParams({
+      ...query,
+      orderByFields: 'OBJECTID',
+      resultOffset: String(features.length),
+      resultRecordCount: String(PAGE_SIZE),
+    });
+    const result = await cachedJson<SmaResponse>(`${SMA_QUERY}?${page.toString()}`);
+    features.push(...result.features);
+    if (!truncated(result) || result.features.length === 0) return features;
+  }
 }
 
 function clipToCorridor(shape: Shape, corridor: Shape): Shape | null {

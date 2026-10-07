@@ -20,7 +20,7 @@ Bikepacking trip maps: a data pipeline turns each trip in `trips/<slug>/` into a
 pnpm install
 pnpm dev                               # app with hot reload, opens the browser
 pnpm trip validate az-grand-tour       # check trip.yaml and the GPX files, no network (or --all)
-pnpm trip build az-grand-tour          # rebuild a trip bundle (or --all)
+pnpm trip build az-grand-tour          # rebuild a trip bundle (or --all; --offline uses only .cache/, --strict fails on warnings)
 pnpm trip nearest <slug> <track> <lat,lon>   # point indices for section ranges
 pnpm check                             # typecheck + lint + format check + unit tests
 pnpm test:e2e                          # Playwright end-to-end tests (builds the app)
@@ -35,7 +35,8 @@ pnpm fmt                               # format with oxfmt
 - The bundle format is `shared/bundle.ts`. Keep fields optional where a trip may not have them, and keep the app working with older bundles (older trips do not need new features). Installed apps run an older app shell against newer bundles, so new values must not crash old code; `app/src/trip/normalize.ts` drops what the app does not know. Bump `BUNDLE_SCHEMA_VERSION` only for breaking changes.
 - Verify every change that affects the app in a browser: run `pnpm screenshot` (or a Playwright script) on the dev server and look at the result, and run `pnpm test:e2e` before finishing. Embedded or hidden browser previews may pause map rendering; headless Playwright does not.
 - Saved trip settings outlive app versions. A new setting needs a default and a check in `app/src/state/tripStore.ts` (TypeScript requires the check); renaming a setting or changing its meaning needs a `STORAGE_VERSION` bump, which drops older saves.
-- Run `pnpm check` before committing; it must pass without warnings.
+- Run `pnpm check` before committing; it must pass without warnings. CI (`.github/workflows/check.yml`) runs it, `pnpm trip validate --all --strict` and the e2e tests on every push.
+- e2e tests never reach the network: tile servers and the weather service are served by `e2e/fixtures.ts`; a test that needs other data serves it with `page.route`.
 - Node.js and pnpm versions are pinned in `package.json` (`devEngines.runtime`, `packageManager`); run tools through pnpm (`pnpm exec`, not `npx`). pnpm settings live in `pnpm-workspace.yaml`. pnpm refuses package versions published less than a day ago (`minimumReleaseAge`); use the previous version or wait.
 - Do not add AI tool attribution (co-author lines, "generated with" notes or similar) to commit messages or commit descriptions.
 

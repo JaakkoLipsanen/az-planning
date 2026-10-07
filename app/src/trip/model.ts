@@ -12,6 +12,7 @@ import {
 import { decodeIntegers, decodePolyline } from '#shared/polyline.ts';
 
 import { ClimateField } from '../climate/field.ts';
+import { gradeClasses } from './grade.ts';
 import { RouteProfile } from './profile.ts';
 
 export type LineKind = 'source' | 'alternative';
@@ -39,6 +40,19 @@ interface LandPolygon {
   bounds: Bounds;
 }
 
+/** A point of interest at one of the places the route passes it. */
+export interface RouteStop {
+  km: number;
+  /** Index into TripModel.pois. */
+  index: number;
+  poi: Poi;
+}
+
+/** Route kms of a point of interest: one per pass, none when it is off the route. */
+export function poiKms(poi: Poi): number[] {
+  return poi.kms ?? (poi.km === undefined ? [] : [poi.km]);
+}
+
 /** The final route as one ordered line, with km scaled to the profile's km. */
 export interface RouteLine {
   coords: LngLat[];
@@ -48,6 +62,8 @@ export interface RouteLine {
 export interface TripModel {
   bundle: TripBundle;
   profile: RouteProfile;
+  /** Steepness class of every profile sample (see GRADE_CLASSES). */
+  grades: Uint8Array;
   /** Typical weather near the route; null for trips built without climate data. */
   climate: ClimateField | null;
   /** IANA time zone for dates and sun times. */
@@ -56,6 +72,8 @@ export interface TripModel {
   sectionBounds: Bounds[];
   lines: Map<string, LineModel>;
   pois: Poi[];
+  /** Every pass of a point of interest, ordered by route km. */
+  stops: RouteStop[];
   geojson: {
     sections: FeatureCollection<LineString>;
     sources: FeatureCollection<LineString>;
@@ -182,9 +200,25 @@ function inRing(ring: readonly LngLat[], lng: number, lat: number): boolean {
   return inside;
 }
 
+/** Grid cell size of the land lookup, degrees. */
+const LAND_CELL_DEG = 0.1;
+
+const landCell = (lng: number, lat: number): string =>
+  `${Math.floor(lng / LAND_CELL_DEG)},${Math.floor(lat / LAND_CELL_DEG)}`;
+
 function landLookup(polygons: readonly LandPolygon[]): TripModel['landAt'] {
+  const grid = new Map<string, LandPolygon[]>();
+  for (const p of polygons) {
+    const [w, s, e, n] = p.bounds;
+    for (let x = Math.floor(w / LAND_CELL_DEG); x <= Math.floor(e / LAND_CELL_DEG); x++) {
+      for (let y = Math.floor(s / LAND_CELL_DEG); y <= Math.floor(n / LAND_CELL_DEG); y++) {
+        const key = `${x},${y}`;
+        grid.set(key, [...(grid.get(key) ?? []), p]);
+      }
+    }
+  }
   return (lng, lat) => {
-    for (const p of polygons) {
+    for (const p of grid.get(landCell(lng, lat)) ?? []) {
       const [w, s, e, n] = p.bounds;
       if (lng < w || lng > e || lat < s || lat > n) continue;
       if (!inRing(p.rings[0], lng, lat)) continue;
@@ -245,12 +279,16 @@ export function buildTripModel(bundle: TripBundle): TripModel {
   return {
     bundle,
     profile,
+    grades: gradeClasses(profile),
     climate: bundle.climate ? new ClimateField(bundle.climate) : null,
     timeZone: bundle.timezone ?? 'UTC',
     route: routeLine(bundle, profile.totalKm),
     sectionBounds,
     lines,
     pois,
+    stops: pois
+      .flatMap((poi, index) => poiKms(poi).map((km): RouteStop => ({ km, index, poi })))
+      .toSorted((a, b) => a.km - b.km),
     geojson: {
       sections: collection(sectionFeatures),
       sources: collection(lineFeatures('source')),

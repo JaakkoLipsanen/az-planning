@@ -40,4 +40,13 @@ export class PointIndex {
     }
     return best;
   }
+
+  /** Indices of all points within radiusM, in index order. */
+  within(lat: number, lng: number, radiusM: number): number[] {
+    const [x, y] = this.project(lng, lat);
+    return this.index
+      .neighbors(x, y, Infinity, radiusM * 1.01)
+      .filter((i) => haversineM(lat, lng, this.points[i].lat, this.points[i].lng) <= radiusM)
+      .toSorted((a, b) => a - b);
+  }
 }

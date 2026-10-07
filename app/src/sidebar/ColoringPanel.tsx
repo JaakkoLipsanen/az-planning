@@ -3,6 +3,7 @@ import { SURFACES } from '#shared/bundle.ts';
 import { formatInt } from '../lib/format.ts';
 import { useTripState, type ColorMode } from '../state/tripStore.ts';
 import { SURFACE_COLORS, SURFACE_INDICES, SURFACE_LABELS } from '../theme.ts';
+import { GRADE_CLASSES } from '../trip/grade.ts';
 import { useTripModel } from '../trip/TripContext.tsx';
 
 import styles from './Sidebar.module.css';
@@ -15,6 +16,7 @@ export function ColoringPanel() {
     ['surface', 'Surface'],
     ['section', 'Section'],
     ...(bundle.plan ? [['day', 'Day'] as [ColorMode, string]] : []),
+    ['grade', 'Gradient'],
   ];
   const kinds = [...new Map(Object.values(bundle.kinds).map((k) => [`${k.label}|${k.color}`, k])).values()];
   return (
@@ -57,9 +59,20 @@ export function ColoringPanel() {
           ))}
         </div>
       )}
+      {colorMode === 'grade' && (
+        <div className={styles.legend}>
+          {GRADE_CLASSES.map((c) => (
+            <span key={c.label} className={styles.legendRow}>
+              <i style={{ background: c.color }} />
+              <span>{c.label}</span>
+            </span>
+          ))}
+        </div>
+      )}
       <p className={styles.note}>
-        Surface from OpenStreetMap (path = singletrack, track / unpaved = unpaved road, other roads = paved;
-        unmapped bits inherit the section type). Day colours alternate per riding day of the day plan below.
+        Gradient over about 800 m, climbs and descents alike. Surface from OpenStreetMap (path = singletrack,
+        track / unpaved = unpaved road, other roads = paved; unmapped bits inherit the section type). Day
+        colours alternate per riding day of the day plan below.
       </p>
     </section>
   );

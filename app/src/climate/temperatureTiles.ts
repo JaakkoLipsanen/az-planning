@@ -3,7 +3,7 @@ import { tileBounds, tileYToLat, TILE_SIZE } from '#shared/tiles.ts';
 
 import type { TileRenderer } from '../offline/tileProtocol.ts';
 import { elevationTile } from './elevation.ts';
-import { LAPSE_C_PER_KM, temperatureAt, type ClimateField } from './field.ts';
+import { temperatureAt, type ClimateField } from './field.ts';
 import { sunTimes } from './sun.ts';
 import { isIsoDate, zonedInstant } from './time.ts';
 
@@ -48,27 +48,43 @@ export function temperatureGradient(): string {
   return `linear-gradient(90deg, ${stops.join(', ')})`;
 }
 
-/** Sea-level temperature at the lattice nodes of a tile at one instant; NaN where there is no climate data. */
+/**
+ * Temperature at sea level and its drop per km of height at the lattice nodes of a tile at one instant (NaN
+ * where there is no climate data); lows and highs fall differently with height, so the drop depends on the hour.
+ */
 function seaLevelLattice(
   field: ClimateField,
   tile: { z: number; x: number; y: number },
   date: string,
   instant: number,
-): Float32Array {
+): { sea: Float32Array; dropPerKm: Float32Array } {
   const [west, , east] = tileBounds(tile);
   const day = dayOfYear(date);
-  const out = new Float32Array(LATTICE * LATTICE).fill(NaN);
+  const sea = new Float32Array(LATTICE * LATTICE).fill(NaN);
+  const dropPerKm = new Float32Array(LATTICE * LATTICE).fill(NaN);
   const centreLat = tileYToLat(tile.y + 0.5, tile.z);
   const sun = sunTimes(date, centreLat, (west + east) / 2);
   for (let j = 0; j < LATTICE; j++) {
     const lat = tileYToLat(tile.y + j / (LATTICE - 1), tile.z);
     for (let i = 0; i < LATTICE; i++) {
       const lng = west + ((east - west) * i) / (LATTICE - 1);
-      const c = field.at(lng, lat, 0, day);
-      if (c) out[j * LATTICE + i] = temperatureAt(c.tMin, c.tMax, sun, instant);
+      const low = field.at(lng, lat, 0, day);
+      const high = field.at(lng, lat, 1000, day);
+      if (!low || !high) continue;
+      const k = j * LATTICE + i;
+      sea[k] = temperatureAt(low.tMin, low.tMax, sun, instant);
+      dropPerKm[k] = sea[k] - temperatureAt(high.tMin, high.tMax, sun, instant);
     }
   }
-  return out;
+  return { sea, dropPerKm };
+}
+
+function bilinear(grid: Float32Array, i: number, j: number, fx: number, fy: number): number {
+  const a = grid[j * LATTICE + i];
+  const b = grid[j * LATTICE + i + 1];
+  const c = grid[(j + 1) * LATTICE + i];
+  const d = grid[(j + 1) * LATTICE + i + 1];
+  return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
 }
 
 /** Typical temperature at a date and local hour, from the climate grid and the elevation of every pixel. */
@@ -78,7 +94,7 @@ export function temperatureRenderer(field: ClimateField, timeZone: string): Tile
     const hour = Number(params.get('hour'));
     if (!isIsoDate(date) || !Number.isInteger(hour)) return null;
     const lattice = seaLevelLattice(field, tile, date, zonedInstant(date, hour, timeZone));
-    if (lattice.every(Number.isNaN)) return null;
+    if (lattice.sea.every(Number.isNaN)) return null;
     const elevation = await elevationTile(tile.z, tile.x, tile.y);
     if (!elevation) return null;
 
@@ -92,14 +108,11 @@ export function temperatureRenderer(field: ClimateField, timeZone: string): Tile
         const u = (px + 0.5) * step;
         const i = Math.min(LATTICE - 2, Math.floor(u));
         const fx = u - i;
-        const a = lattice[j * LATTICE + i];
-        const b = lattice[j * LATTICE + i + 1];
-        const c = lattice[(j + 1) * LATTICE + i];
-        const d = lattice[(j + 1) * LATTICE + i + 1];
-        const sea = (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
+        const sea = bilinear(lattice.sea, i, j, fx, fy);
         if (Number.isNaN(sea)) continue;
         const k = py * TILE_SIZE + px;
-        const [r, g, bl] = temperatureColor(sea - (LAPSE_C_PER_KM * Math.max(0, elevation[k])) / 1000);
+        const drop = bilinear(lattice.dropPerKm, i, j, fx, fy);
+        const [r, g, bl] = temperatureColor(sea - (drop * Math.max(0, elevation[k])) / 1000);
         image.data.set([r, g, bl, 255], k * 4);
       }
     }

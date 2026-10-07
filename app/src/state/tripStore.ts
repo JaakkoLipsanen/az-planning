@@ -8,8 +8,9 @@ import { POI_CATEGORIES, type PoiCategory, type TripBundle } from '#shared/bundl
 import type { Bounds, LngLat } from '#shared/geo.ts';
 
 import { isIsoDate } from '../climate/time.ts';
+import { linkedSettings } from './shareLink.ts';
 
-export type ColorMode = 'surface' | 'section' | 'day';
+export type ColorMode = 'surface' | 'section' | 'day' | 'grade';
 export type ProfileMode = 'elevation' | 'temperature';
 export type PoiGroup = PoiCategory | 'osm' | 'plan';
 
@@ -26,6 +27,12 @@ export const DETAIL_LAYERS = [
   'protected',
 ] as const;
 export type DetailLayer = (typeof DETAIL_LAYERS)[number];
+
+/** A night the user fixed at a route km; the plan splits the days around it. */
+export interface PinnedNight {
+  night: number;
+  km: number;
+}
 
 /** Choices that persist per trip; only the ones that differ from the trip's defaults are stored. */
 export interface TripSettings {
@@ -45,14 +52,27 @@ export interface TripSettings {
   offlinePacks: string[];
   /** First day of the trip (YYYY-MM-DD), for dates, sun times and typical weather. */
   startDate: string | null;
+  pinnedNights: PinnedNight[];
+  /** Nights followed by a day off. */
+  restDays: number[];
+  /** Local time (HH:MM) the riding starts every day; null for sunrise. */
+  startTime: string | null;
+  /** Breaks as a share of the moving time, %. */
+  breakPercent: number;
+  /** The water and resupply analysis counts natural sources (creeks, springs, tanks) and OpenStreetMap points. */
+  waterNatural: boolean;
+  waterOsm: boolean;
+  /** The elevation profile shows only the selected day. */
+  profileDayZoom: boolean;
   temperatureOverlay: boolean;
   /** Date and hour shown by the temperature overlay; the date defaults to the start date. */
   overlayDate: string | null;
   overlayHour: number;
+  overlayOpacity: number;
 }
 
 export type HoverExtra =
-  | { kind: 'line'; name: string; km: number; totalKm: number; ele: number | null }
+  | { kind: 'line'; id: string; name: string; km: number; totalKm: number; ele: number | null }
   | { kind: 'land'; label: string; color: string }
   | { kind: 'temperature'; celsius: number; ele: number; hour: number };
 
@@ -68,10 +88,15 @@ export interface Hover {
 export interface GpsPosition {
   lng: number;
   lat: number;
+  /** When the position was measured (ms). */
+  at: number;
   accuracyM: number | null;
   km: number;
   offRouteM: number;
 }
+
+/** A popup requested by UI outside the map, such as search results. */
+export type FocusTarget = { kind: 'poi'; index: number } | { kind: 'night'; index: number };
 
 /** A camera move requested by UI outside the map (profile clicks, sidebar zoom buttons). */
 export type CameraRequest =
@@ -87,8 +112,11 @@ interface TripUi {
   gps: GpsPosition | null;
   gpsError: string | null;
   camera: (CameraRequest & { id: number }) | null;
+  focus: (FocusTarget & { id: number }) | null;
   /** Points of the distance measurement, or null when not measuring. */
   measure: LngLat[] | null;
+  /** The settings before a shared link replaced them, until the user keeps or undoes the change. */
+  linkUndo: Partial<TripSettings> | null;
 }
 
 type ListSetting = 'hiddenSections' | 'sources' | 'alternatives' | 'poiGroups' | 'land' | 'offlinePacks';
@@ -103,7 +131,12 @@ interface TripActions {
   setHover: (hover: Hover | null) => void;
   setGps: (gps: GpsPosition | null, gpsError?: string | null) => void;
   moveCamera: (request: CameraRequest) => void;
+  focusOn: (target: FocusTarget) => void;
   setMeasure: (points: LngLat[] | null) => void;
+  pinNight: (night: number, km: number | null) => void;
+  toggleRestDay: (night: number) => void;
+  /** Restores the settings from before the shared link (true) or keeps the link's (false). */
+  closeLink: (undo: boolean) => void;
 }
 
 export type TripState = TripSettings & TripUi & TripActions;
@@ -130,9 +163,17 @@ export function defaultSettings(bundle: TripBundle): TripSettings {
     profileMode: 'elevation',
     offlinePacks: (bundle.offline?.packs ?? []).filter((p) => p.selected !== false).map((p) => p.id),
     startDate: bundle.plan?.startDate ?? null,
+    pinnedNights: [],
+    restDays: [],
+    startTime: null,
+    breakPercent: 25,
+    waterNatural: false,
+    waterOsm: true,
+    profileDayZoom: true,
     temperatureOverlay: false,
     overlayDate: null,
     overlayHour: 6,
+    overlayOpacity: 0.6,
   };
 }
 
@@ -164,8 +205,12 @@ function settingsSchema(bundle: TripBundle) {
   const details = z
     .object(Object.fromEntries(DETAIL_LAYERS.map((l) => [l, z.boolean().catch(defaults.details[l])])))
     .transform((value) => value as Record<DetailLayer, boolean>);
+  const totalKm = bundle.profile.km.at(-1) ?? 0;
+  const pinnedNights = z.array(z.object({ night: z.int().min(1), km: z.number().min(0).max(totalKm) }));
   const shape = {
-    colorMode: lenient(oneOf<ColorMode>(plan ? ['surface', 'section', 'day'] : ['surface', 'section'])),
+    colorMode: lenient(
+      oneOf<ColorMode>(plan ? ['surface', 'section', 'day', 'grade'] : ['surface', 'section', 'grade']),
+    ),
     days: lenient(plan ? z.int().min(plan.minDays).max(plan.maxDays) : z.never()),
     basemap: lenient(oneOf(bundle.imagery?.basemaps ?? [])),
     terrain3d: lenient(z.boolean()),
@@ -180,9 +225,17 @@ function settingsSchema(bundle: TripBundle) {
     profileMode: lenient(oneOf<ProfileMode>(bundle.climate ? ['elevation', 'temperature'] : ['elevation'])),
     offlinePacks: lenient(knownIds((bundle.offline?.packs ?? []).map((x) => x.id))),
     startDate: lenient(isoDate.nullable()),
+    pinnedNights: lenient(plan ? pinnedNights : z.never()),
+    restDays: lenient(plan ? z.array(z.int().min(1)) : z.never()),
+    startTime: lenient(clockTime.nullable()),
+    breakPercent: lenient(z.int().min(0).max(200)),
+    waterNatural: lenient(z.boolean()),
+    waterOsm: lenient(z.boolean()),
+    profileDayZoom: lenient(z.boolean()),
     temperatureOverlay: lenient(z.boolean()),
     overlayDate: lenient(isoDate.nullable()),
     overlayHour: lenient(z.int().min(0).max(23)),
+    overlayOpacity: lenient(z.number().min(0.1).max(1)),
   } satisfies { [K in keyof TripSettings]: z.ZodType<TripSettings[K] | undefined> };
   return z.object(shape).partial().catch({});
 }
@@ -194,6 +247,7 @@ export function sanitizeSettings(stored: unknown, bundle: TripBundle): Partial<T
 }
 
 const isoDate = z.custom<string>(isIsoDate);
+const clockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 
 const savedSettings = z.object({ state: z.unknown(), version: z.literal(STORAGE_VERSION) });
 
@@ -215,10 +269,20 @@ function writeStored(key: string, overrides: Partial<TripSettings>): void {
   }
 }
 
+/** Pins that the new one would contradict (an earlier night further along, or the reverse) are dropped. */
+function withPin(pins: readonly PinnedNight[], night: number, km: number | null): PinnedNight[] {
+  const others = pins.filter(
+    (p) => p.night !== night && (km === null || (p.night < night ? p.km < km : p.km > km)),
+  );
+  return km === null ? others : [...others, { night, km }].toSorted((a, b) => a.night - b.night);
+}
+
 export function createTripStore(bundle: TripBundle): TripStore {
   const key = `trip:${bundle.slug}:settings`;
   const defaults = defaultSettings(bundle);
-  const initial = { ...defaults, ...sanitizeSettings(readStored(key), bundle) };
+  const stored = sanitizeSettings(readStored(key), bundle);
+  const linked = linkedSettings();
+  const initial = { ...defaults, ...(linked === undefined ? stored : sanitizeSettings(linked, bundle)) };
   return createStore<TripState>()((set, get) => {
     const applySettings = (patch: Partial<TripSettings>): void => {
       const overrides = settingsOverrides({ ...get(), ...patch }, defaults);
@@ -229,12 +293,14 @@ export function createTripStore(bundle: TripBundle): TripStore {
       ...initial,
       customized: Object.keys(settingsOverrides(initial, defaults)).length > 0,
       selectedDay: null,
-      sidebarOpen: false,
+      sidebarOpen: linked !== undefined,
       hover: null,
       gps: null,
       gpsError: null,
       camera: null,
+      focus: null,
       measure: null,
+      linkUndo: linked === undefined ? null : stored,
       update: applySettings,
       toggleInList: (list, id, on) => {
         const current: readonly string[] = get()[list];
@@ -251,7 +317,22 @@ export function createTripStore(bundle: TripBundle): TripStore {
       setHover: (hover) => set({ hover }),
       setGps: (gps, gpsError = null) => set({ gps, gpsError }),
       moveCamera: (request) => set((s) => ({ camera: { ...request, id: (s.camera?.id ?? 0) + 1 } })),
+      focusOn: (target) => set((s) => ({ focus: { ...target, id: (s.focus?.id ?? 0) + 1 } })),
       setMeasure: (measure) => set({ measure }),
+      pinNight: (night, km) => applySettings({ pinnedNights: withPin(get().pinnedNights, night, km) }),
+      toggleRestDay: (night) => {
+        const { restDays } = get();
+        applySettings({
+          restDays: restDays.includes(night)
+            ? restDays.filter((n) => n !== night)
+            : [...restDays, night].toSorted((a, b) => a - b),
+        });
+      },
+      closeLink: (undo) => {
+        const previous = get().linkUndo;
+        set({ linkUndo: null });
+        applySettings(undo && previous ? { ...defaults, ...previous } : {});
+      },
     };
   });
 }

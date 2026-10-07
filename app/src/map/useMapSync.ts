@@ -42,8 +42,8 @@ function useFilters(map: MapLibreMap): void {
   const land = useTripState((s) => s.land);
 
   useEffect(() => {
-    map.setFilter(LAYERS.route, filters.sections(hiddenSections));
-    map.setFilter(LAYERS.routeCasing, filters.sections(hiddenSections));
+    for (const id of [LAYERS.route, LAYERS.routeCasing, LAYERS.routeGrade])
+      map.setFilter(id, filters.sections(hiddenSections));
   }, [map, hiddenSections]);
   useEffect(() => {
     map.setFilter(LAYERS.sources, filters.lines(sources));
@@ -125,6 +125,7 @@ function useDayPlan(map: MapLibreMap): void {
   useEffect(() => {
     map.setPaintProperty(LAYERS.route, 'line-color', routeColor(colorMode));
     setVisible(map, [LAYERS.dayLines], colorMode === 'day');
+    setVisible(map, [LAYERS.routeGrade], colorMode === 'grade');
   }, [map, colorMode]);
 }
 
@@ -154,12 +155,17 @@ function useCamera(map: MapLibreMap): void {
 }
 
 function useTemperatureOverlay(map: MapLibreMap): void {
+  const model = useTripModel();
   const on = useTripState((s) => s.temperatureOverlay);
-  const date = useTripState((s) => overlayDate(s));
+  const date = useTripState((s) => overlayDate(s, model.timeZone));
   const hour = useTripState((s) => s.overlayHour);
+  const opacity = useTripState((s) => s.overlayOpacity);
   useEffect(() => {
     setVisible(map, [LAYERS.temperature], on);
   }, [map, on]);
+  useEffect(() => {
+    if (map.getLayer(LAYERS.temperature)) map.setPaintProperty(LAYERS.temperature, 'raster-opacity', opacity);
+  }, [map, opacity]);
   useEffect(() => {
     map.getSource<RasterTileSource>(LAYERS.temperature)?.setTiles([temperatureTemplate(date, hour)]);
   }, [map, date, hour]);

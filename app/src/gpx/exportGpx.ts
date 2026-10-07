@@ -84,13 +84,15 @@ function dayGpx(model: TripModel, plan: DayPlan, track: FullTrack, day: Day): st
       type: 'night',
     });
   }
-  for (const p of model.pois) {
-    if (p.km === undefined || p.osm || p.km < day.startKm - 0.05 || p.km > day.endKm + 0.05) continue;
+  const listed = new Set<number>();
+  for (const { km, index, poi: p } of model.stops) {
+    if (p.osm || listed.has(index) || km < day.startKm - 0.05 || km > day.endKm + 0.05) continue;
+    listed.add(index);
     waypoints.push({
       lat: p.lat,
       lng: p.lng,
       name: p.name,
-      description: `${p.description ? `${p.description} ` : ''}[route km ${p.km.toFixed(1)}; ${p.source}]`,
+      description: `${p.description ? `${p.description} ` : ''}[route km ${km.toFixed(1)}; ${p.source}]`,
       symbol: GPX_SYMBOLS[p.category],
       type: p.category,
     });
