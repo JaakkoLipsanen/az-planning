@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { LandCategory, SurfaceIndex } from '#shared/bundle.ts';
 import { clamp, EARTH_CIRCUMFERENCE_M, type LngLat } from '#shared/geo.ts';
 
+import { temperatureHere, type PointTemperature } from '../climate/overlay.ts';
 import { TOUCH } from '../lib/device.ts';
 import { shortLabel, shortName } from '../lib/format.ts';
 import type { DayPlan } from '../plan/dayPlan.ts';
@@ -32,6 +33,8 @@ interface PopupState {
   lngLat: LngLat;
   selection: Selection;
   land: LandCategory | null;
+  /** The overlay's typical temperature at the clicked point, while the temperature overlay is on. */
+  temperature?: PointTemperature;
 }
 
 type Point = { x: number; y: number };
@@ -187,13 +190,25 @@ export function MapInteractions() {
 
   useEffect(() => {
     let frame = 0;
+    let lookups = 0;
     const canvas = map.getCanvas();
+    /** The overlay's temperature at a point, or null when the overlay is off or has no value there. */
+    const temperatureAt = (lngLat: LngLat): Promise<PointTemperature | null> => {
+      const state = store.getState();
+      return state.temperatureOverlay
+        ? temperatureHere(model, state, lngLat, map.getZoom())
+        : Promise.resolve(null);
+    };
     const setHover = (hover: Hover | null): void => {
       if (hover || store.getState().hover) store.getState().setHover(hover);
     };
 
     const onMove = (e: MapMouseEvent): void => {
       cancelAnimationFrame(frame);
+      if (store.getState().measure) {
+        canvas.style.cursor = 'crosshair';
+        return;
+      }
       frame = requestAnimationFrame(() => {
         const feature = probe(map, model, store).point(e.point);
         if (feature) {
@@ -206,16 +221,42 @@ export function MapInteractions() {
         const hover = hoverAt(map, model, store, e);
         canvas.style.cursor = hover ? 'crosshair' : '';
         setHover(hover);
+        const lookup = ++lookups;
+        const at: LngLat = [e.lngLat.lng, e.lngLat.lat];
+        void temperatureAt(at).then((t) => {
+          if (!t || lookup !== lookups) return;
+          const base = hover ?? { profileIndex: null, position: at, extras: [] };
+          const extra: HoverExtra = { kind: 'temperature', celsius: t.celsius, ele: t.ele, hour: t.hour };
+          store.getState().setHover({ ...base, extras: [...base.extras, extra] });
+        });
       });
     };
     const onOut = (): void => {
       cancelAnimationFrame(frame);
+      lookups++;
       setTip(null);
       setHover(null);
     };
     const onClick = (e: MapMouseEvent): void => {
-      setPopup(clickAt(map, model, plan, store, e));
+      const { measure: points, setMeasure } = store.getState();
+      if (points) {
+        setMeasure([...points, [e.lngLat.lng, e.lngLat.lat]]);
+        setPopup(null);
+        return;
+      }
+      const next = clickAt(map, model, plan, store, e);
+      setPopup(next);
       store.getState().setSidebarOpen(false);
+      const at: LngLat = [e.lngLat.lng, e.lngLat.lat];
+      void temperatureAt(at).then((temperature) => {
+        if (!temperature) return;
+        setPopup((current) => {
+          if (current === next && next) return { ...next, temperature };
+          return current === null && next === null && TOUCH
+            ? { lngLat: at, selection: { kind: 'temperature' }, land: null, temperature }
+            : current;
+        });
+      });
     };
 
     // Phones send a mousemove before every tap, which would add hover labels on top of the tap's popup.
@@ -239,7 +280,13 @@ export function MapInteractions() {
       {tip && <Tooltip tip={tip} />}
       {popup && (
         <MapPopup lngLat={popup.lngLat} onClose={closePopup}>
-          <PopupBody model={model} plan={plan} selection={popup.selection} land={popup.land} />
+          <PopupBody
+            model={model}
+            plan={plan}
+            selection={popup.selection}
+            land={popup.land}
+            temperature={popup.temperature}
+          />
         </MapPopup>
       )}
     </>

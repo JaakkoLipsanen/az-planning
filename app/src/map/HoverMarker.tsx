@@ -4,16 +4,39 @@ import { createPortal } from 'react-dom';
 
 import { clamp, type LngLat } from '#shared/geo.ts';
 
-import { formatGrade, formatHours, formatInt, shortName } from '../lib/format.ts';
+import { formatGrade, formatHours, formatInt, formatTemperature, shortName } from '../lib/format.ts';
 import { dayProgress } from '../plan/dayPlan.ts';
-import { useTripState, type Hover } from '../state/tripStore.ts';
+import { useTripState, type Hover, type HoverExtra } from '../state/tripStore.ts';
 import { usePlan, useTripModel } from '../trip/TripContext.tsx';
 import { useMap } from './MapContext.ts';
 
 import styles from './HoverMarker.module.css';
 
-function extraKey(extra: Hover['extras'][number]): string {
-  return extra.kind === 'line' ? `line:${extra.name}` : `land:${extra.label}`;
+function Extra({ extra }: { extra: HoverExtra }) {
+  switch (extra.kind) {
+    case 'line':
+      return (
+        <span className={styles.other}>
+          <b>{extra.name}</b> · km {extra.km.toFixed(1)}
+          {extra.totalKm ? ` / ${extra.totalKm}` : ''}
+          {extra.ele !== null && ` · ${formatInt(extra.ele)} m`}
+        </span>
+      );
+    case 'land':
+      return (
+        <span className={styles.other}>
+          <i className={styles.swatch} style={{ background: extra.color }} />
+          {extra.label}
+        </span>
+      );
+    case 'temperature':
+      return (
+        <span className={styles.other}>
+          Typical <b>{formatTemperature(extra.celsius)}</b> at {String(extra.hour).padStart(2, '0')}:00 ·{' '}
+          {formatInt(extra.ele)} m
+        </span>
+      );
+  }
 }
 
 function MainRouteLines({ index }: { index: number }) {
@@ -52,20 +75,9 @@ function Label({ hover }: { hover: Hover }) {
   return (
     <>
       {hover.profileIndex !== null && <MainRouteLines index={hover.profileIndex} />}
-      {hover.extras.map((extra) =>
-        extra.kind === 'line' ? (
-          <span key={extraKey(extra)} className={styles.other}>
-            <b>{extra.name}</b> · km {extra.km.toFixed(1)}
-            {extra.totalKm ? ` / ${extra.totalKm}` : ''}
-            {extra.ele !== null && ` · ${formatInt(extra.ele)} m`}
-          </span>
-        ) : (
-          <span key={extraKey(extra)} className={styles.other}>
-            <i className={styles.swatch} style={{ background: extra.color }} />
-            {extra.label}
-          </span>
-        ),
-      )}
+      {hover.extras.map((extra) => (
+        <Extra key={extra.kind === 'line' ? `line:${extra.name}` : extra.kind} extra={extra} />
+      ))}
     </>
   );
 }

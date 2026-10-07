@@ -11,8 +11,9 @@ import {
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
+import { temperatureRenderer } from '../climate/temperatureTiles.ts';
 import { isNarrow } from '../lib/device.ts';
-import { registerTileProtocol } from '../offline/tileProtocol.ts';
+import { registerTileProtocol, setTileRenderer } from '../offline/tileProtocol.ts';
 import { useTripState, useTripStore } from '../state/tripStore.ts';
 import { usePlan, useTripModel } from '../trip/TripContext.tsx';
 import { dayFeatures } from './dayFeatures.ts';
@@ -28,24 +29,26 @@ prewarm();
 /** Expected while offline or when a provider lacks a tile; the protocol already falls back for these. */
 const IGNORED_ERRORS = /no elevation tile|Failed to fetch|AbortError/i;
 
-class TerrainControl implements IControl {
+/** A map button that is on or off; `render` sets its label and title for each state. */
+class ToggleControl implements IControl {
   readonly button = document.createElement('button');
   private readonly container = document.createElement('div');
+  private readonly render: (button: HTMLButtonElement, on: boolean) => void;
 
-  constructor(onClick: () => void) {
+  constructor(onClick: () => void, render: (button: HTMLButtonElement, on: boolean) => void) {
+    this.render = render;
     this.container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
     this.button.type = 'button';
-    this.button.className = styles.terrainButton;
+    this.button.className = styles.toggleButton;
     this.button.addEventListener('click', onClick);
     this.container.append(this.button);
+    this.show(false);
   }
 
   show(on: boolean): void {
-    this.button.textContent = on ? '2D' : '3D';
     this.button.classList.toggle(styles.on, on);
-    this.button.title = on
-      ? 'Back to the flat 2D map'
-      : 'Show 3D terrain (tilt with right-drag, Ctrl-drag or two fingers)';
+    this.button.setAttribute('aria-pressed', String(on));
+    this.render(this.button, on);
   }
 
   onAdd(): HTMLElement {
@@ -57,11 +60,40 @@ class TerrainControl implements IControl {
   }
 }
 
-function useTerrainControl(control: TerrainControl | null): void {
+const RULER_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="M2.5 16.5 16.5 2.5l5 5-14 14z"/><path d="M6.5 12.5l2 2M9.5 9.5l2 2M12.5 6.5l2 2"/></svg>';
+
+function terrainControl(onClick: () => void): ToggleControl {
+  return new ToggleControl(onClick, (button, on) => {
+    button.textContent = on ? '2D' : '3D';
+    button.title = on
+      ? 'Back to the flat 2D map'
+      : 'Show 3D terrain (tilt with right-drag, Ctrl-drag or two fingers)';
+  });
+}
+
+function measureControl(onClick: () => void): ToggleControl {
+  return new ToggleControl(onClick, (button, on) => {
+    button.innerHTML = RULER_ICON;
+    button.title = on ? 'Stop measuring' : 'Measure distances';
+    button.setAttribute('aria-label', button.title);
+  });
+}
+
+interface Controls {
+  terrain: ToggleControl;
+  measure: ToggleControl;
+}
+
+function useControlStates(controls: Controls | null): void {
   const terrain3d = useTripState((s) => s.terrain3d);
+  const measuring = useTripState((s) => s.measure !== null);
   useEffect(() => {
-    control?.show(terrain3d);
-  }, [control, terrain3d]);
+    controls?.terrain.show(terrain3d);
+  }, [controls, terrain3d]);
+  useEffect(() => {
+    controls?.measure.show(measuring);
+  }, [controls, measuring]);
 }
 
 function supportsWebGL2(): boolean {
@@ -79,13 +111,14 @@ export function MapView({ children }: { children: ReactNode }) {
   const container = useRef<HTMLDivElement>(null);
   const initialPlan = useRef(plan);
   const [map, setMap] = useState<MapLibreMap | null>(null);
-  const [terrainControl, setTerrainControl] = useState<TerrainControl | null>(null);
+  const [controls, setControls] = useState<Controls | null>(null);
   const [webgl] = useState(supportsWebGL2);
-  useTerrainControl(terrainControl);
+  useControlStates(controls);
 
   useEffect(() => {
     if (!container.current || !webgl) return;
     registerTileProtocol();
+    if (model.climate) setTileRenderer('temperature', temperatureRenderer(model.climate, model.timeZone));
     const state = store.getState();
     const days = dayFeatures(initialPlan.current, model.bundle.plan?.longDayHours ?? Infinity);
     const instance = new MapLibreMap({
@@ -100,12 +133,19 @@ export function MapView({ children }: { children: ReactNode }) {
       fadeDuration: 100,
     });
 
-    const terrainButton = new TerrainControl(() => {
-      const { terrain3d, update } = store.getState();
-      update({ terrain3d: !terrain3d });
-    });
+    const buttons: Controls = {
+      terrain: terrainControl(() => {
+        const { terrain3d, update } = store.getState();
+        update({ terrain3d: !terrain3d });
+      }),
+      measure: measureControl(() => {
+        const { measure, setMeasure } = store.getState();
+        setMeasure(measure ? null : []);
+      }),
+    };
     instance.addControl(new NavigationControl({ visualizePitch: true }), 'top-left');
-    instance.addControl(terrainButton, 'top-left');
+    instance.addControl(buttons.terrain, 'top-left');
+    instance.addControl(buttons.measure, 'top-left');
     const geolocate = new GeolocateControl({
       positionOptions: { enableHighAccuracy: true, maximumAge: 5000, timeout: 30_000 },
       trackUserLocation: true,
@@ -167,15 +207,16 @@ export function MapView({ children }: { children: ReactNode }) {
       void iconsAdded.then(() => {
         if (disposed) return;
         instance.fitBounds(model.bundle.bounds, { padding: 20, duration: 0 });
-        setTerrainControl(terrainButton);
+        setControls(buttons);
         setMap(instance);
       });
     });
     return () => {
       disposed = true;
       setMap(null);
-      setTerrainControl(null);
+      setControls(null);
       instance.remove();
+      setTileRenderer('temperature', null);
     };
   }, [model, store, webgl]);
 

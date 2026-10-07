@@ -1,12 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
+import { temperatureAlongRoute } from '../climate/conditions.ts';
 import { TOUCH } from '../lib/device.ts';
-import { formatGrade, formatHours, formatInt } from '../lib/format.ts';
+import { formatGrade, formatHours, formatInt, formatTemperatureRange } from '../lib/format.ts';
 import { dayProgress } from '../plan/dayPlan.ts';
 import { useTripState, useTripStore } from '../state/tripStore.ts';
-import { SURFACE_COLORS, SURFACE_INDICES, SURFACE_LABELS } from '../theme.ts';
+import { SURFACE_COLORS, SURFACE_INDICES, SURFACE_LABELS, TEMPERATURE_COLORS } from '../theme.ts';
 import { usePlan, useTripModel } from '../trip/TripContext.tsx';
-import { daysOfSamples, drawProfile, profileColors, sampleAtX, type ProfileColors } from './drawProfile.ts';
+import {
+  daysOfSamples,
+  drawProfile,
+  profileColors,
+  sampleAtX,
+  type ProfileColors,
+  type TemperatureSeries,
+} from './drawProfile.ts';
 
 import styles from './ElevationProfile.module.css';
 
@@ -34,7 +42,7 @@ function useElementSize(element: RefObject<HTMLElement | null>): { width: number
   return size;
 }
 
-function HoverInfo({ index }: { index: number }) {
+function HoverInfo({ index, temperature }: { index: number; temperature: TemperatureSeries | null }) {
   const model = useTripModel();
   const plan = usePlan();
   const { data } = model.profile;
@@ -60,6 +68,11 @@ function HoverInfo({ index }: { index: number }) {
           </b>
         </>
       )}
+      {temperature && Number.isFinite(temperature.tMin[index]) && (
+        <>
+          {' · '}typical <b>{formatTemperatureRange(temperature.tMin[index], temperature.tMax[index])}</b>
+        </>
+      )}
       {' · '}
       {SURFACE_LABELS[data.surface[index]]}
       {progress && (
@@ -81,12 +94,20 @@ export function ElevationProfile() {
   const hover = useTripState((s) => s.hover);
   const gpsKm = useTripState((s) => s.gps?.km ?? null);
   const collapsed = useTripState((s) => s.profileCollapsed);
+  const mode = useTripState((s) => s.profileMode);
+  const startDate = useTripState((s) => s.startDate);
   const update = useTripState((s) => s.update);
   const canvas = useRef<HTMLCanvasElement>(null);
   const { width, height } = useElementSize(canvas);
   const colors = useProfileColors();
   const dayOfSample = useMemo(() => daysOfSamples(model.profile, plan), [model, plan]);
   const hoverIndex = hover?.profileIndex ?? null;
+  const canShowTemperature = Boolean(model.climate && model.bundle.plan);
+  const temperature = useMemo(
+    () => (canShowTemperature && startDate ? temperatureAlongRoute(model, dayOfSample, startDate) : null),
+    [model, dayOfSample, startDate, canShowTemperature],
+  );
+  const showTemperature = mode === 'temperature' && temperature !== null;
 
   useEffect(() => {
     if (canvas.current && !collapsed) {
@@ -102,9 +123,24 @@ export function ElevationProfile() {
         selectedDay,
         hoverIndex,
         gpsKm,
+        temperature: showTemperature ? temperature : null,
       });
     }
-  }, [model, plan, colorMode, dayOfSample, selectedDay, hoverIndex, gpsKm, width, height, colors, collapsed]);
+  }, [
+    model,
+    plan,
+    colorMode,
+    dayOfSample,
+    selectedDay,
+    hoverIndex,
+    gpsKm,
+    width,
+    height,
+    colors,
+    collapsed,
+    showTemperature,
+    temperature,
+  ]);
 
   const hoverAt = (clientX: number): number | null => {
     const el = canvas.current;
@@ -123,11 +159,16 @@ export function ElevationProfile() {
     moveCamera({ kind: 'center', center: model.profile.lngLatAt(index), minZoom: 12 });
   };
 
-  const hint = TOUCH
-    ? 'Elevation profile of the final route. Drag along it to locate, tap to zoom there.'
-    : 'Elevation profile of the final route. Hover to locate, click to zoom there.';
+  const what =
+    mode === 'temperature' ? 'Typical daily low and high on the planned dates' : 'Elevation profile';
+  const hint =
+    mode === 'temperature' && !startDate
+      ? 'Pick a start date in the Day plan panel to see temperatures along the route.'
+      : `${what} of the final route. ${TOUCH ? 'Drag along it to locate, tap to zoom there.' : 'Hover to locate, click to zoom there.'}`;
   return (
-    <div className={`${styles.wrap} ${collapsed ? styles.collapsed : ''}`}>
+    <div
+      className={`${styles.wrap} ${collapsed ? styles.collapsed : ''} ${canShowTemperature ? styles.withModes : ''}`}
+    >
       <canvas
         ref={canvas}
         className={styles.canvas}
@@ -138,14 +179,50 @@ export function ElevationProfile() {
         onTouchStart={(e) => hoverAt(e.touches[0].clientX)}
         onTouchMove={(e) => hoverAt(e.touches[0].clientX)}
       />
-      <div className={styles.info}>{hoverIndex !== null ? <HoverInfo index={hoverIndex} /> : hint}</div>
-      {colorMode === 'surface' && hoverIndex === null && width > 560 && !collapsed && (
+      <div className={styles.info}>
+        {hoverIndex !== null ? <HoverInfo index={hoverIndex} temperature={temperature} /> : hint}
+      </div>
+      {showTemperature && hoverIndex === null && width > 560 && !collapsed && (
+        <div className={styles.legend}>
+          <span>
+            <i style={{ background: TEMPERATURE_COLORS.high }} />
+            Typical high
+          </span>
+          <span>
+            <i style={{ background: TEMPERATURE_COLORS.low }} />
+            Typical low
+          </span>
+        </div>
+      )}
+      {!showTemperature && colorMode === 'surface' && hoverIndex === null && width > 560 && !collapsed && (
         <div className={styles.legend}>
           {SURFACE_INDICES.map((s) => (
             <span key={s}>
               <i style={{ background: s === 2 ? colors.paved : SURFACE_COLORS[s] }} />
               {SURFACE_LABELS[s]}
             </span>
+          ))}
+        </div>
+      )}
+      {canShowTemperature && !collapsed && (
+        <div className={styles.modes} role="radiogroup" aria-label="Profile shows">
+          {(
+            [
+              ['elevation', 'm', 'Elevation'],
+              ['temperature', '°C', 'Typical temperature'],
+            ] as const
+          ).map(([value, label, title]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={mode === value}
+              title={title}
+              className={mode === value ? styles.modeOn : undefined}
+              onClick={() => update({ profileMode: value })}
+            >
+              {label}
+            </button>
           ))}
         </div>
       )}

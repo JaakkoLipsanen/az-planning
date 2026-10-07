@@ -1,3 +1,4 @@
+import type { FeatureCollection } from 'geojson';
 import type {
   ExpressionSpecification,
   FilterSpecification,
@@ -8,6 +9,8 @@ import type {
 
 import { TILE_SOURCES } from '#shared/basemaps.ts';
 
+import { climateBounds, overlayDate } from '../climate/overlay.ts';
+import { temperatureTemplate } from '../climate/temperatureTiles.ts';
 import { protocolTemplate } from '../offline/tileProtocol.ts';
 import type { TripSettings } from '../state/tripStore.ts';
 import { DAY_HIGHLIGHT } from '../theme.ts';
@@ -28,6 +31,8 @@ const FONT_REGULAR = ['noto-regular'];
 const FONT_BOLD = ['noto-bold'];
 const FONT_ITALIC = ['noto-italic'];
 const LABEL_HALO = { 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 };
+const MEASURE_COLOR = '#1b4f9c';
+const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] };
 
 const ELEVATION_TINT: ExpressionSpecification = [
   'interpolate',
@@ -125,7 +130,11 @@ function peakLayer(
   };
 }
 
-function sources(model: TripModel, days: DayFeatures): Record<string, SourceSpecification> {
+function sources(
+  model: TripModel,
+  settings: TripSettings,
+  days: DayFeatures,
+): Record<string, SourceSpecification> {
   const dem: SourceSpecification = {
     type: 'raster-dem',
     tiles: [protocolTemplate('terrain')],
@@ -147,6 +156,15 @@ function sources(model: TripModel, days: DayFeatures): Record<string, SourceSpec
       attribution: source.attribution,
     };
   }
+  if (model.climate) {
+    out[LAYERS.temperature] = {
+      type: 'raster',
+      tiles: [temperatureTemplate(overlayDate(settings), settings.overlayHour)],
+      tileSize: 256,
+      maxzoom: TILE_SOURCES.terrain.maxzoom,
+      bounds: climateBounds(model.climate.layer),
+    };
+  }
   const g = model.geojson;
   const geojson = {
     'base-lines': g.basemapLines,
@@ -162,6 +180,8 @@ function sources(model: TripModel, days: DayFeatures): Record<string, SourceSpec
     days: days.lines,
     'day-labels': days.labels,
     nights: days.nights,
+    [LAYERS.measureLine]: EMPTY,
+    [LAYERS.measurePoints]: EMPTY,
   };
   for (const [id, data] of Object.entries(geojson)) out[id] = { type: 'geojson', data };
   return out;
@@ -209,6 +229,17 @@ export function buildStyle(
       },
     },
     ...basemapLayers(model, settings),
+    ...(model.climate
+      ? [
+          {
+            id: LAYERS.temperature,
+            type: 'raster',
+            source: LAYERS.temperature,
+            layout: { visibility: visible(settings.temperatureOverlay) },
+            paint: { 'raster-opacity': 0.6, 'raster-fade-duration': 0 },
+          } satisfies LayerSpecification,
+        ]
+      : []),
     {
       id: LAYERS.landFill,
       type: 'fill',
@@ -532,11 +563,47 @@ export function buildStyle(
       },
       paint: { 'text-color': '#ffffff' },
     },
+    {
+      id: LAYERS.measureLine,
+      type: 'line',
+      source: LAYERS.measureLine,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': MEASURE_COLOR, 'line-width': 2.5, 'line-dasharray': [2, 1.5] },
+    },
+    {
+      id: LAYERS.measurePoints,
+      type: 'circle',
+      source: LAYERS.measurePoints,
+      filter: ['==', ['get', 'kind'], 'point'],
+      paint: {
+        'circle-radius': 8,
+        'circle-color': MEASURE_COLOR,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 2,
+      },
+    },
+    {
+      id: LAYERS.measureLabels,
+      type: 'symbol',
+      source: LAYERS.measurePoints,
+      layout: {
+        'text-field': ['get', 'label'],
+        'text-font': FONT_BOLD,
+        'text-size': ['match', ['get', 'kind'], 'point', 11, 12.5],
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      },
+      paint: {
+        'text-color': ['match', ['get', 'kind'], 'point', '#ffffff', MEASURE_COLOR],
+        'text-halo-color': ['match', ['get', 'kind'], 'point', 'rgba(0,0,0,0)', '#ffffff'],
+        'text-halo-width': 2,
+      },
+    },
   ];
   return {
     version: 8,
     glyphs: `${location.origin}/fonts/{fontstack}/{range}.pbf`,
-    sources: sources(model, days),
+    sources: sources(model, settings, days),
     layers,
   };
 }

@@ -1,0 +1,71 @@
+.card {
+  position: absolute;
+  bottom: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  width: min(320px, calc(100% - 24px));
+  background: var(--panel);
+  color: var(--fg);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 30%);
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.head b {
+  font: 600 14px var(--font-display);
+}
+
+.total {
+  font-weight: 600;
+}
+
+.hint,
+.route {
+  color: var(--muted);
+}
+
+.segments {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 96px;
+  overflow-y: auto;
+}
+
+.buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.buttons button {
+  flex: 1;
+  padding: 4px 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--fg);
+  font: 600 12px var(--font-body);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.buttons button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.buttons .done {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}

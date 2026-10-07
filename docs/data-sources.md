@@ -41,6 +41,17 @@ curl -s 'https://brouter.de/brouter?lonlats=-110.9741,33.1059|-110.9058,33.0589&
 
 `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png` (AWS Open Data, worldwide, up to z15). Elevation in metres is `R * 256 + G + B / 256 - 32768`. The pipeline samples z12 for points without elevation, and the app uses the same tiles for hillshade, elevation tint and 3D terrain, up to z12 (the catalog's `maxzoom`; MapLibre scales them up beyond that), so terrain packs stop at z12.
 
+## Typical weather: NASA POWER
+
+Worldwide daily weather since the 1980s from NASA's POWER project: temperature and precipitation from the MERRA-2 reanalysis, cloud cover from CERES satellite data. Free, no key. The pipeline fetches 20 years for every grid cell near the route (cells are 0.625° of longitude by 0.5° of latitude, about 55 km) and stores weekly averages: daily low and high, share of wet days (≥ 1 mm), mean precipitation and shares of clear (< 25 % cloud) and cloudy (> 75 %) days.
+
+```bash
+curl -s 'https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MIN,T2M_MAX,PRECTOTCORR,CLOUD_AMT&community=RE&longitude=-110.625&latitude=32.5&start=20050101&end=20241231&format=JSON' \
+  | jq '.geometry.coordinates, (.properties.parameter.T2M_MAX | to_entries[:3])'
+```
+
+The third coordinate in the response is the cell's mean elevation; temperatures refer to it. The app moves them to any elevation with 6.5 °C per km, which matters in the mountains: the cell around Mt Lemmon averages 1,178 m, Summerhaven is at 2,400 m. The data is coarse. Expect typical values within a few degrees, valleys colder on clear nights than the lapse rate suggests, and reanalysis rain falling on more days than gauges record.
+
 ## Land ownership: BLM Surface Management Agency
 
 US only. ArcGIS REST service `https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_LimitedScale/MapServer/1/query`, queried as GeoJSON for the trip's `region` (see `pipeline/src/layers/land.ts` for the parameters). The `ADMIN_AGENCY_CODE` field maps to the overlay categories. The service returns at most 2,000 features per query; the build fails if a region needs more, rather than silently dropping land.

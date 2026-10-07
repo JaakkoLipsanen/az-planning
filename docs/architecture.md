@@ -10,8 +10,9 @@
 4. **Surface** (`layers/surface.ts`): every route point is matched to the nearest OpenStreetMap way within 30 m (OpenFreeMap z14 vector tiles), measured in a projection centred on that point. Paths count as singletrack, tracks as unpaved, other roads as paved. Unmatched stretches use the section kind's default, and runs shorter than 150 m are merged into a neighbour.
 5. **Profile** (`route/profile.ts`): a sample about every 100 m with elevation, surface, cumulative climb (5 m hysteresis) and moving time. Moving time is distance ÷ speed plus climb ÷ climbing rate, with speeds per surface and section kind from `trip.yaml`.
 6. **Layers**: POIs (`layers/pois.ts`, with the keyword and OpenStreetMap tag rules in `layers/poiRules.ts`: GPX waypoints, the trip's own points, OSM via Overpass), source routes and alternatives (`layers/lines.ts`), the basemap overlay (`layers/basemap.ts`: OpenFreeMap z11, plus Overpass for tribal lands) and land ownership (`layers/land.ts`: BLM SMA polygons clipped with JTS to a corridor around the routes).
-7. **Offline packs** (`offline/coverage.ts`): for every pack, every tile within the configured radius of the route and alternatives, per zoom level.
-8. **Write** (`output/`): `dist/trip.json`, the full and by-section GPX files, app icons drawn from the route outline, and the generated summary block in `NOTES.md`.
+7. **Climate** (`layers/climate.ts`, `net/power.ts`): NASA POWER daily data for the grid cells near the route, reduced to weekly averages per cell.
+8. **Offline packs** (`offline/coverage.ts`): for every pack, every tile within the configured radius of the route and alternatives, per zoom level.
+9. **Write** (`output/`): `dist/trip.json`, the full and by-section GPX files, app icons drawn from the route outline, and the generated summary block in `NOTES.md`.
 
 Online responses are cached forever in `.cache/http/` (the OpenFreeMap TileJSON for 30 days; the build logs which planet build it used), so rebuilds are fast and repeatable. Files are written atomically, and responses that report an error with HTTP 200 (Overpass timeouts, truncated ArcGIS results) fail the build instead of being cached. Delete `.cache/` to pull fresh OSM data.
 
@@ -26,7 +27,9 @@ Online responses are cached forever in `.cache/http/` (the OpenFreeMap TileJSON 
 - `state/tripStore.ts`: one zustand store per trip. Settings (layers, colouring, days, basemap, offline packs) are stored in `localStorage` under `trip:<slug>:settings`, but only those that differ from the trip's defaults, so changed defaults reach returning users. They are written when a setting changes, never for transient UI state (hover, selected day, GPS, camera requests). On load every setting is checked against the current trip and code; invalid values fall back to the default, and saves from another `STORAGE_VERSION` are ignored.
 - `plan/dayPlan.ts`: splits the route into days of equal moving time and moves each night to the best stop within ±15 % of a day.
 - `map/`: `MapView` creates the MapLibre map once per trip from `buildStyle`. Later setting changes are applied by `useMapSync`. Hover, tooltips and popups are in `MapInteractions`.
-- `profile/`: the elevation profile canvas, linked to the map through the store's `hover`.
+- `profile/`: the elevation profile canvas (elevation or typical temperature), linked to the map through the store's `hover`.
+- `climate/`: sun times (`sun.ts`), dates in the trip's time zone (`time.ts`), the climate grid with elevation adjustment and the daily temperature curve (`field.ts`), per-day conditions, and the temperature overlay. The overlay is a computed tile source: `temperatureTiles.ts` renders each tile from the elevation tile at the same position, so it follows valleys and ridges and works offline wherever terrain tiles are stored. While it is on, hovering the map (tapping on phones) shows the value at that point, computed from the same cached terrain tile (`elevation.ts`). The overlay's card also summarises the whole route at that date and hour: minimum, 10th percentile, average, 90th percentile and maximum (`routeStats.ts`).
+- `map/measure.ts` and `MeasurePanel.tsx`: the distance tool; while it is on, map clicks add points instead of opening popups.
 - `sidebar/`, `ui/`: panels and header.
 
 ## Map tiles and offline
@@ -37,6 +40,8 @@ All raster and elevation tiles go through the custom `tiles://<source>/{z}/{x}/{
 2. the provider over the network (sources in `shared/basemaps.ts`);
 3. the nearest stored lower-zoom tile, cropped and scaled up, so offline views zoomed past the downloaded detail stay usable;
 4. a transparent tile.
+
+Computed tiles register a renderer with `setTileRenderer(name, …)` and are requested as `tiles://<name>/{z}/{x}/{y}?…`; the temperature overlay is one.
 
 `offline/download.ts` stores the trip files (`trip-files:<slug>`; `trip.json` is also refreshed there on every online load) and the missing tiles of the chosen packs. Tiles the provider does not have are kept as empty markers, so a pack can be complete. Tiles and files from older builds and the caches of removed packs are deleted, and completeness is checked against the bundle's tile list rather than separate bookkeeping. Requests time out after 30 s and are retried; a full storage quota stops the download with a message. Only sources whose terms allow it (`offline: true` in the catalog) can be packed.
 

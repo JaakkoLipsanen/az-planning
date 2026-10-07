@@ -3,6 +3,8 @@ import type { TripBundle } from '#shared/bundle.ts';
 import { expect, mapIdle, serveBundle, test, TRIP } from './fixtures.ts';
 
 const TILES_PER_PACK = 6;
+/** Downloading stores the trip's GPX files too (about 12 MB), which can take a while on a busy machine. */
+const DOWNLOAD = { timeout: 30_000 };
 
 /** The real packs hold thousands of tiles; a few per pack keep the test fast. */
 function tinyPacks(bundle: TripBundle): TripBundle {
@@ -21,7 +23,7 @@ test('a downloaded trip opens and draws without a network', async ({ page, conte
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
 
   await page.getByRole('button', { name: /^Download/ }).click();
-  await expect(page.getByText('✓ Ready offline')).toBeVisible();
+  await expect(page.getByText('✓ Ready offline')).toBeVisible(DOWNLOAD);
   await expect(page.locator('header').getByRole('button', { name: 'Offline ✓' })).toBeVisible();
 
   await context.setOffline(true);
@@ -44,14 +46,14 @@ test('a rebuilt trip asks for its files again', async ({ page }) => {
   await mapIdle(page);
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
   await page.getByRole('button', { name: /^Download/ }).click();
-  await expect(page.getByText('✓ Ready offline')).toBeVisible();
+  await expect(page.getByText('✓ Ready offline')).toBeVisible(DOWNLOAD);
 
   version = 'second';
   await page.reload();
   await mapIdle(page);
   await expect(page.getByText('Trip updated')).toBeVisible();
   await page.getByRole('button', { name: /^Download/ }).click();
-  await expect(page.getByText('✓ Ready offline')).toBeVisible();
+  await expect(page.getByText('✓ Ready offline')).toBeVisible(DOWNLOAD);
   const versions = await page.evaluate(async (trip) => {
     const cache = await caches.open(`trip-files:${trip}`);
     return (await cache.keys()).map((r) => new URL(r.url).searchParams.get('v')).filter(Boolean);

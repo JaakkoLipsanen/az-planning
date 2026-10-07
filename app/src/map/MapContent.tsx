@@ -1,12 +1,23 @@
 import type { LandCategory, Poi, SurfaceIndex } from '#shared/bundle.ts';
 
+import { DayConditionsDetails } from '../climate/DayConditionsInfo.tsx';
+import type { PointTemperature } from '../climate/overlay.ts';
+import { formatDate } from '../climate/time.ts';
 import { ActionButton } from '../components/ActionButton.tsx';
 import { Dot, SurfaceBar, SurfaceShares } from '../components/SurfaceBar.tsx';
 import { exportDayGpx } from '../gpx/exportGpx.ts';
-import { formatGrade, formatHours, formatInt, shortLabel, truncate } from '../lib/format.ts';
+import {
+  formatGrade,
+  formatHours,
+  formatInt,
+  formatTemperature,
+  shortLabel,
+  truncate,
+} from '../lib/format.ts';
 import type { Day, DayPlan, Night } from '../plan/dayPlan.ts';
 import { CATEGORY_COLORS, CATEGORY_LABELS, SURFACE_LABELS } from '../theme.ts';
 import type { TripModel } from '../trip/model.ts';
+import { useDayConditions } from '../trip/TripContext.tsx';
 
 import styles from './MapContent.module.css';
 
@@ -16,7 +27,8 @@ export type Selection =
   | { kind: 'night'; index: number }
   | { kind: 'section'; section: number; profileIndex: number | null; surface: SurfaceIndex | null }
   | { kind: 'line'; id: string }
-  | { kind: 'land' };
+  | { kind: 'land' }
+  | { kind: 'temperature' };
 
 function poiMeta(p: Poi): string {
   const where =
@@ -66,6 +78,7 @@ function DayPopup({
   longDayHours: number;
 }) {
   const land = day.night?.land;
+  const conditions = useDayConditions()?.[day.number - 1];
   return (
     <>
       <h3 className={styles.title}>
@@ -83,6 +96,11 @@ function DayPopup({
       <div className={styles.meta}>
         <SurfaceShares day={day} /> · {formatInt(day.lowM)}–{formatInt(day.highM)} m
       </div>
+      {conditions && (
+        <div className={styles.meta}>
+          <DayConditionsDetails day={day} conditions={conditions} />
+        </div>
+      )}
       <p className={styles.text}>
         <b>From:</b> {day.from}
         <br />
@@ -173,16 +191,27 @@ function LinePopup({ model, id }: { model: TripModel; id: string }) {
   );
 }
 
+function TemperatureLine({ temperature }: { temperature: PointTemperature }) {
+  return (
+    <div className={styles.meta}>
+      Typical <b>{formatTemperature(temperature.celsius)}</b> at {String(temperature.hour).padStart(2, '0')}
+      :00 on {formatDate(temperature.date)} · {formatInt(temperature.ele)} m
+    </div>
+  );
+}
+
 export function PopupBody({
   model,
   plan,
   selection,
   land,
+  temperature,
 }: {
   model: TripModel;
   plan: DayPlan;
   selection: Selection;
   land: LandCategory | null;
+  temperature?: PointTemperature;
 }) {
   const longDayHours = model.bundle.plan?.longDayHours ?? Infinity;
   const body = (() => {
@@ -202,6 +231,7 @@ export function PopupBody({
       case 'line':
         return <LinePopup model={model} id={selection.id} />;
       case 'land':
+      case 'temperature':
         return null;
     }
   })();
@@ -211,6 +241,7 @@ export function PopupBody({
     <div className={styles.popup}>
       {body}
       {showLand && <LandLine land={land} />}
+      {temperature && <TemperatureLine temperature={temperature} />}
     </div>
   );
 }

@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 
 import { boundsOf } from '#shared/geo.ts';
 
+import type { DayConditions } from '../climate/conditions.ts';
+import { DayConditionsSummary } from '../climate/DayConditionsInfo.tsx';
 import { ActionButton } from '../components/ActionButton.tsx';
 import { SurfaceBar, SurfaceShares } from '../components/SurfaceBar.tsx';
 import { exportAllDaysGpx, exportRouteGpx } from '../gpx/exportGpx.ts';
@@ -9,7 +11,7 @@ import { formatHours, formatInt, shortLabel } from '../lib/format.ts';
 import type { Day } from '../plan/dayPlan.ts';
 import { useTripState } from '../state/tripStore.ts';
 import { dayColor } from '../theme.ts';
-import { usePlan, useTripModel } from '../trip/TripContext.tsx';
+import { useDayConditions, usePlan, useTripModel } from '../trip/TripContext.tsx';
 
 import styles from './Sidebar.module.css';
 
@@ -18,12 +20,14 @@ function DayCard({
   last,
   selected,
   longDayHours,
+  conditions,
   onSelect,
 }: {
   day: Day;
   last: boolean;
   selected: boolean;
   longDayHours: number;
+  conditions: DayConditions | undefined;
   onSelect: () => void;
 }) {
   const { bundle } = useTripModel();
@@ -58,6 +62,11 @@ function DayCard({
         <SurfaceShares day={day} />
       </div>
       <div className={styles.dayTo}>→ {to}</div>
+      {conditions && (
+        <div className={styles.dayMeta}>
+          <DayConditionsSummary day={day} conditions={conditions} />
+        </div>
+      )}
       {day.resupply.length > 0 && (
         <div className={styles.dayMeta}>
           Resupply: {day.resupply.slice(0, 3).join(', ')}
@@ -105,8 +114,10 @@ function GpxExport() {
 export function DayPlanPanel() {
   const { bundle, profile } = useTripModel();
   const plan = usePlan();
+  const conditions = useDayConditions();
   const settings = bundle.plan;
   const days = useTripState((s) => s.days);
+  const startDate = useTripState((s) => s.startDate);
   const dayLabels = useTripState((s) => s.dayLabels);
   const selectedDay = useTripState((s) => s.selectedDay);
   const update = useTripState((s) => s.update);
@@ -181,6 +192,19 @@ export function DayPlanPanel() {
           </span>
         )}
       </div>
+      <label className={styles.startRow}>
+        <span>Start date</span>
+        <input
+          type="date"
+          value={startDate ?? ''}
+          onChange={(e) => update({ startDate: e.target.value || null })}
+        />
+      </label>
+      {!startDate && (
+        <p className={styles.note}>
+          Pick a start date to see dates, daylight and typical weather for every day.
+        </p>
+      )}
       <label className={styles.item}>
         <input
           type="checkbox"
@@ -199,6 +223,7 @@ export function DayPlanPanel() {
             last={day.number === plan.count}
             selected={day.number === selectedDay}
             longDayHours={settings.longDayHours}
+            conditions={conditions?.[day.number - 1]}
             onSelect={() => choose(day)}
           />
         ))}
@@ -208,6 +233,13 @@ export function DayPlanPanel() {
         hand-picked stop within ±15 % of a day (otherwise it is an own-choice spot; the popup shows the land
         owner). {settings.note}
       </p>
+      {startDate && (
+        <p className={styles.note}>
+          Light runs from civil dawn to civil dusk, when the sun is less than 6° below the horizon: usually
+          enough to ride open ground without a lamp, though under trees, in canyons or under cloud it gets
+          dark sooner. Weather is typical for the date, not a forecast.
+        </p>
+      )}
     </section>
   );
 }

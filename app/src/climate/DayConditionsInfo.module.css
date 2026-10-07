@@ -1,0 +1,41 @@
+.summary,
+.details {
+  font-variant-numeric: tabular-nums;
+}
+
+.details {
+  margin-top: 6px;
+  display: grid;
+  gap: 2px;
+}
+
+.skyRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sky {
+  display: inline-flex;
+  width: 54px;
+  height: 7px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--line);
+  flex: none;
+}
+
+.sky i {
+  display: block;
+  height: 100%;
+}
+
+.warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.source {
+  color: var(--muted);
+  font-size: 11px;
+}

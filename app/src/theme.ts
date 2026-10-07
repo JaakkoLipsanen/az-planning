@@ -42,6 +42,16 @@ export const CATEGORY_LABELS: Record<PoiCategory, string> = {
   info: 'Note',
 };
 
+export const TEMPERATURE_COLORS = {
+  high: '#d9480f',
+  low: '#1c7ed6',
+  band: 'rgba(240, 140, 60, 0.22)',
+  freezing: '#4dabf7',
+};
+
+/** Clear, partly cloudy and cloudy skies. */
+export const SKY_COLORS = ['#7cc4ef', '#b9c3cc', '#6e7782'] as const;
+
 export const DAY_COLORS = ['#d62839', '#1b8a5a', '#2d5bd7', '#e07b00', '#8e3bb5', '#0f8b9c'];
 export const DAY_HIGHLIGHT = '#ffd21f';
 export const DAY_HIGHLIGHT_STROKE = '#e0a800';

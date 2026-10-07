@@ -1,6 +1,6 @@
 # Trip maps
 
-Planning maps for bikepacking trips: the route, a day plan, points of interest, land ownership and GPX export in an installable web app that also works offline.
+Planning maps for bikepacking trips: the route, a day plan with dates, daylight and typical weather, points of interest, land ownership, a temperature map, a distance tool and GPX export, in an installable web app that also works offline.
 
 Each trip lives in `trips/<slug>/` as plain data (a `trip.yaml` and GPX files). A TypeScript pipeline turns it into a bundle, and the app shows every trip under `/<slug>/`.
 
@@ -48,7 +48,7 @@ Every trip is installable on its own: open `/<slug>/` on the phone and use "Add 
 ## Data and licences
 
 - OpenStreetMap data © OpenStreetMap contributors (ODbL), via Overpass and OpenFreeMap tiles (OpenMapTiles schema).
-- Topo and imagery tiles: USGS The National Map (public domain). Elevation: Terrarium tiles (AWS Open Data). Land status: BLM Surface Management Agency.
+- Topo and imagery tiles: USGS The National Map (public domain). Elevation: Terrarium tiles (AWS Open Data). Land status: BLM Surface Management Agency. Climate: NASA POWER.
 - MapLibre GL JS (BSD-3-Clause); Noto Sans map glyphs and Barlow UI fonts (SIL OFL).
 - The source GPX files belong to their authors (bikepacking.com, Arizona Trail Race, Arizona Trail Association) and are here for personal trip planning. Keep the repository private.
 

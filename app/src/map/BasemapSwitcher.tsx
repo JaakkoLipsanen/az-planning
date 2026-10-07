@@ -113,8 +113,7 @@ function LandOverlay() {
   }, [some, land.length, categories.length]);
   if (categories.length === 0) return null;
   return (
-    <div className={styles.overlay}>
-      <div className={styles.title}>Overlay</div>
+    <>
       <label className={styles.check}>
         <input
           ref={checkbox}
@@ -132,6 +131,29 @@ function LandOverlay() {
           </span>
         ))}
       </div>
+    </>
+  );
+}
+
+function Overlays() {
+  const { bundle, climate } = useTripModel();
+  const temperature = useTripState((s) => s.temperatureOverlay);
+  const update = useTripState((s) => s.update);
+  if (!bundle.land && !climate) return null;
+  return (
+    <div className={styles.overlay}>
+      <div className={styles.title}>Overlay</div>
+      <LandOverlay />
+      {climate && (
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            checked={temperature}
+            onChange={(e) => update({ temperatureOverlay: e.target.checked })}
+          />
+          Typical temperature at a date and hour
+        </label>
+      )}
     </div>
   );
 }
@@ -179,7 +201,7 @@ export function BasemapSwitcher() {
             ))}
           </div>
           {basemap === 'mapbox' && <MapboxSettings />}
-          <LandOverlay />
+          <Overlays />
           <div className={styles.note}>
             Maps marked online need a connection; the others can be stored for offline use in the Offline
             panel.

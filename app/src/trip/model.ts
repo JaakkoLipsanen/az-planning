@@ -11,6 +11,7 @@ import {
 } from '#shared/geo.ts';
 import { decodeIntegers, decodePolyline } from '#shared/polyline.ts';
 
+import { ClimateField } from '../climate/field.ts';
 import { RouteProfile } from './profile.ts';
 
 export type LineKind = 'source' | 'alternative';
@@ -47,6 +48,10 @@ export interface RouteLine {
 export interface TripModel {
   bundle: TripBundle;
   profile: RouteProfile;
+  /** Typical weather near the route; null for trips built without climate data. */
+  climate: ClimateField | null;
+  /** IANA time zone for dates and sun times. */
+  timeZone: string;
   route: RouteLine;
   sectionBounds: Bounds[];
   lines: Map<string, LineModel>;
@@ -240,6 +245,8 @@ export function buildTripModel(bundle: TripBundle): TripModel {
   return {
     bundle,
     profile,
+    climate: bundle.climate ? new ClimateField(bundle.climate) : null,
+    timeZone: bundle.timezone ?? 'UTC',
     route: routeLine(bundle, profile.totalKm),
     sectionBounds,
     lines,

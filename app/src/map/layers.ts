@@ -8,6 +8,7 @@ import { DAY_COLORS, SURFACE_COLORS } from '../theme.ts';
 export const LAYERS = {
   reliefColor: 'relief-color',
   reliefShade: 'relief-shade',
+  temperature: 'temperature',
   landFill: 'land-fill',
   landLine: 'land-line',
   lakes: 'lakes',
@@ -43,6 +44,9 @@ export const LAYERS = {
   dayLabels: 'day-labels',
   pois: 'pois',
   nights: 'nights',
+  measureLine: 'measure-line',
+  measurePoints: 'measure-points',
+  measureLabels: 'measure-labels',
 } as const;
 
 export const PLACE_LAYERS = [

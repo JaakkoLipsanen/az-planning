@@ -19,6 +19,7 @@ import { loadTrip, type Trip } from './config/load.ts';
 import { ElevationModel } from './geo/elevation.ts';
 import { PointIndex } from './geo/spatial.ts';
 import { buildBasemapOverlay } from './layers/basemap.ts';
+import { buildClimateLayer } from './layers/climate.ts';
 import { buildLandLayer } from './layers/land.ts';
 import { alternativePoints, buildAlternatives, buildSourceLines } from './layers/lines.ts';
 import { collectPois, type PoiCandidate } from './layers/pois.ts';
@@ -88,6 +89,7 @@ function buildPlan(trip: Trip, route: Route, index: PointIndex): PlanSettings | 
     longDayHours: plan.longDayHours,
     start: plan.start,
     finish: plan.finish,
+    startDate: plan.startDate,
     note: plan.note,
     overnights: plan.overnights.map((o) => {
       const near =
@@ -178,6 +180,12 @@ export async function buildTrip(slug: string): Promise<TripBundle> {
     land = await buildLandLayer(region, corridorLines, config.land.corridorKm, config.land.note);
   }
 
+  let climate: TripBundle['climate'];
+  if (config.climate) {
+    log.step('Climate (NASA POWER)');
+    climate = await buildClimateLayer(corridorLines, config.climate.years);
+  }
+
   log.step('Offline packs');
   const offline = config.offline ? { packs: buildOfflinePacks(trip, corridorLines) } : undefined;
 
@@ -190,6 +198,7 @@ export async function buildTrip(slug: string): Promise<TripBundle> {
     subtitle: config.subtitle,
     description: config.description,
     attribution: config.attribution,
+    timezone: config.timezone,
     bounds,
     region,
     stats,
@@ -216,6 +225,7 @@ export async function buildTrip(slug: string): Promise<TripBundle> {
       },
     },
     offline,
+    climate,
     files: { gpxFull: gpx.full.file, gpxSections: gpx.sections.file },
   };
   const json = JSON.stringify(bundle);

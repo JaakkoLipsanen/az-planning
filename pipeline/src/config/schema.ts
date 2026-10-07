@@ -16,6 +16,15 @@ const bounds = z
     'expected [west, south, east, north]',
   );
 
+/** An IANA time zone name, such as America/Phoenix. */
+const timeZone = z.string().refine((name) => {
+  try {
+    return new Intl.DateTimeFormat('en', { timeZone: name }).resolvedOptions().timeZone !== '';
+  } catch {
+    return false;
+  }
+}, 'expected an IANA time zone such as America/Phoenix');
+
 const surfaceSpeeds = z.strictObject({ single: z.number().positive(), unpaved: z.number().positive() });
 
 /** Zoom level -> value. */
@@ -112,6 +121,8 @@ const plan = z.strictObject({
   longDayHours: z.number().positive(),
   start: z.string(),
   finish: z.string(),
+  /** Suggested first day; the app lets the user change it. */
+  startDate: z.iso.date().optional(),
   note: z.string().optional(),
   overnights: z.array(point.extend({ name: z.string(), km: z.number().optional() }).strict()).default([]),
 });
@@ -138,6 +149,8 @@ export const tripConfigSchema = z.strictObject({
   subtitle: z.string().optional(),
   description: z.string().optional(),
   attribution: z.string().optional(),
+  /** Needed for sun times and dates in the app. */
+  timezone: timeZone.optional(),
   /** Area of the basemap overlay and land data; defaults to the route's bounds plus a margin. */
   region: bounds.optional(),
   tracks: z.record(z.string(), track),
@@ -176,6 +189,14 @@ export const tripConfigSchema = z.strictObject({
     })
     .optional(),
   offline: z.strictObject({ packs: z.array(offlinePack) }).optional(),
+  /** Typical weather from NASA POWER daily data over these years (inclusive). */
+  climate: z
+    .strictObject({
+      years: z
+        .tuple([z.int().min(1985), z.int()])
+        .refine(([first, last]) => first <= last, 'expected [first year, last year]'),
+    })
+    .optional(),
   gpx: z
     .strictObject({
       baseName: z.string().optional(),

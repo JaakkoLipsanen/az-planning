@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 
 import { TILE_SOURCES } from '#shared/basemaps.ts';
 
+import { overlayDate } from '../climate/overlay.ts';
+import { temperatureTemplate } from '../climate/temperatureTiles.ts';
 import { isNarrow } from '../lib/device.ts';
 import { mapboxTemplate } from '../offline/tileProtocol.ts';
 import { usePreferences } from '../state/preferences.ts';
@@ -21,6 +23,7 @@ import {
   TERRAIN_SOURCE,
 } from './layers.ts';
 import { useMap } from './MapContext.ts';
+import { measure, measureFeatures } from './measure.ts';
 
 const TERRAIN_EXAGGERATION = 1.35;
 /** Zoom from which raster basemaps replace the vector overlay's roads, water and (on map styles) labels. */
@@ -150,6 +153,28 @@ function useCamera(map: MapLibreMap): void {
   }, [map, camera]);
 }
 
+function useTemperatureOverlay(map: MapLibreMap): void {
+  const on = useTripState((s) => s.temperatureOverlay);
+  const date = useTripState((s) => overlayDate(s));
+  const hour = useTripState((s) => s.overlayHour);
+  useEffect(() => {
+    setVisible(map, [LAYERS.temperature], on);
+  }, [map, on]);
+  useEffect(() => {
+    map.getSource<RasterTileSource>(LAYERS.temperature)?.setTiles([temperatureTemplate(date, hour)]);
+  }, [map, date, hour]);
+}
+
+function useMeasureLayers(map: MapLibreMap): void {
+  const model = useTripModel();
+  const points = useTripState((s) => s.measure);
+  useEffect(() => {
+    const features = measureFeatures(points ?? [], measure(model, points ?? []));
+    void map.getSource<GeoJSONSource>(LAYERS.measureLine)?.setData(features.line);
+    void map.getSource<GeoJSONSource>(LAYERS.measurePoints)?.setData(features.points);
+  }, [map, model, points]);
+}
+
 function useDetails(map: MapLibreMap): void {
   const details = useTripState((s) => s.details);
   useEffect(() => {
@@ -164,5 +189,7 @@ export function useMapSync(): void {
   useTerrain(map);
   useDayPlan(map);
   useDetails(map);
+  useTemperatureOverlay(map);
+  useMeasureLayers(map);
   useCamera(map);
 }

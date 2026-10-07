@@ -17,6 +17,21 @@ export function formatGrade(percent: number): string {
   return `${sign}${Math.abs(Math.round(percent * 10) / 10).toFixed(1)} %`;
 }
 
+/** "−3 °C", with a real minus sign. */
+export function formatTemperature(celsius: number): string {
+  const rounded = Math.round(celsius);
+  return `${rounded < 0 ? '−' : ''}${Math.abs(rounded)} °C`;
+}
+
+/** "17–22 °C", or "−3 to 5 °C" when a minus sign would make a dash ambiguous. */
+export function formatTemperatureRange(low: number, high: number): string {
+  const [a, b] = [Math.round(low), Math.round(high)];
+  if (a === b) return formatTemperature(a);
+  return a < 0
+    ? `${formatTemperature(a).replace(' °C', '')} to ${formatTemperature(b)}`
+    : `${a}–${formatTemperature(b)}`;
+}
+
 export function formatInt(value: number): string {
   return Math.round(value).toLocaleString('en-US');
 }

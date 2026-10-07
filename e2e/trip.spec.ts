@@ -159,6 +159,57 @@ test('a minimal bundle with an unknown tile source still works', async ({ page, 
   expect(consoleErrors).toEqual([]);
 });
 
+test('a start date adds dates, light and typical weather', async ({ page, consoleErrors }) => {
+  await openTrip(page);
+  await page.getByLabel('Start date').fill('2026-12-03');
+  const first = dayCards(page).first();
+  await expect(first).toContainText('Thu 3 Dec');
+  await expect(first).toContainText(/light \d\d:\d\d–\d\d:\d\d/);
+  await expect(first).toContainText(/Highs .*°C · night/);
+  await page.getByRole('radio', { name: '°C' }).click();
+  await expect(page.getByText(/Typical daily low and high/)).toBeVisible();
+  expect(consoleErrors).toEqual([]);
+});
+
+test('shows typical temperatures on the map for a date and hour', async ({ page, consoleErrors }) => {
+  await openTrip(page);
+  await page
+    .getByTitle(TILE_SOURCES[BUNDLE.imagery?.default ?? 'terrain'].title)
+    .first()
+    .click();
+  await page.getByLabel('Typical temperature at a date and hour').check();
+  await page.keyboard.press('Escape');
+  const control = page.getByRole('group', { name: 'Temperature overlay' });
+  await expect(control).toBeVisible();
+  await control.getByLabel('Hour').fill('15');
+  await expect(control).toContainText('15:00');
+  await expect(page.getByTestId('route-temperature')).toContainText(/min\s*−?\d+ °C\s*km \d+/);
+  await expect(page.getByTestId('route-temperature')).toContainText(/avg\s*−?\d+ °C/);
+  await mapSettled(page);
+  const box = await map(page).boundingBox();
+  if (!box) throw new Error('map not visible');
+  await page.mouse.move(box.x + box.width * 0.45, box.y + box.height * 0.55);
+  await expect(page.locator('.maplibregl-marker')).toContainText(/Typical −?\d+ °C at 15:00 · 1,000 m/);
+  await control.getByRole('button', { name: 'Hide the temperature overlay' }).click();
+  await expect(control).toHaveCount(0);
+  expect(consoleErrors).toEqual([]);
+});
+
+test('measures distances between clicked points', async ({ page }) => {
+  await openTrip(page);
+  await page.getByRole('button', { name: 'Measure distances' }).click();
+  const box = await map(page).boundingBox();
+  if (!box) throw new Error('map not visible');
+  await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.5);
+  await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.5);
+  await expect(page.getByTestId('measure-total')).toContainText('km');
+  await expect(page.locator('.maplibregl-popup')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByTestId('measure-total')).toHaveText('');
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('group', { name: 'Distance measurement' })).toHaveCount(0);
+});
+
 test.describe('on a touch phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
@@ -178,5 +229,21 @@ test.describe('on a touch phone', () => {
     expect(rect && rect.x >= box.x && rect.x + rect.width <= box.x + box.width).toBe(true);
     await expect(page.locator('.maplibregl-marker [class*=label]')).toHaveCount(0);
     expect(consoleErrors).toEqual([]);
+  });
+
+  test('tapping the map with the temperature overlay on shows the temperature there', async ({ page }) => {
+    await page.addInitScript(
+      ([trip]) =>
+        localStorage.setItem(
+          `trip:${trip}:settings`,
+          JSON.stringify({ state: { temperatureOverlay: true }, version: 1 }),
+        ),
+      [TRIP],
+    );
+    await openTrip(page);
+    const box = await map(page).boundingBox();
+    if (!box) throw new Error('map not visible');
+    await page.touchscreen.tap(box.x + box.width * 0.3, box.y + box.height * 0.7);
+    await expect(page.locator('.maplibregl-popup')).toContainText(/Typical −?\d+ °C at 06:00/);
   });
 });

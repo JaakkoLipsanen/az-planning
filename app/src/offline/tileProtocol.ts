@@ -96,29 +96,56 @@ async function fromAncestor(
   return null;
 }
 
+/** A tile's image: the stored copy, the provider, or a stored ancestor scaled up; null when there is none. */
+export async function tileData(
+  source: TileSourceId,
+  z: number,
+  x: number,
+  y: number,
+  signal: AbortSignal,
+): Promise<ArrayBuffer | null> {
+  const stored = await storedTile(source, z, x, y);
+  if (stored) return stored.headers.has(EMPTY_TILE_HEADER) ? null : stored.arrayBuffer();
+  const url = providerUrl(source, z, x, y);
+  const network = url ? await fromNetwork(url, signal) : null;
+  if (network === 'missing') return null;
+  return network ?? fromAncestor(source, z, x, y);
+}
+
+/** Computes a tile from other data, such as the temperature overlay; null draws nothing. */
+export type TileRenderer = (
+  tile: { z: number; x: number; y: number },
+  params: URLSearchParams,
+  signal: AbortSignal,
+) => Promise<ArrayBuffer | null>;
+
+const renderers = new Map<string, TileRenderer>();
+
+/** Serves tiles://<name>/... from a renderer instead of a provider; null removes it. */
+export function setTileRenderer(name: string, renderer: TileRenderer | null): void {
+  if (renderer) renderers.set(name, renderer);
+  else renderers.delete(name);
+}
+
 async function loadTile(
   params: RequestParameters,
   abort: AbortController,
 ): Promise<GetResourceResponse<ArrayBuffer>> {
-  const match = /^tiles:\/\/([\w-]+)\/(\d+)\/(\d+)\/(\d+)/.exec(params.url);
-  if (!match || !isTileSourceId(match[1])) throw new Error(`bad tile url ${params.url}`);
-  const source = match[1];
+  const match = /^tiles:\/\/([\w-]+)\/(\d+)\/(\d+)\/(\d+)(?:\?(.*))?$/.exec(params.url);
+  if (!match) throw new Error(`bad tile url ${params.url}`);
+  const name = match[1];
+  const query: string | undefined = match[5];
   const [z, x, y] = [Number(match[2]), Number(match[3]), Number(match[4])];
-  const dem = TILE_SOURCES[source].kind === 'dem';
-  const transparent = (): GetResourceResponse<ArrayBuffer> => {
-    if (dem) throw new Error(`no elevation tile ${z}/${x}/${y}`);
-    return { data: TRANSPARENT_PNG.slice(0) };
-  };
-
-  const stored = await storedTile(source, z, x, y);
-  if (stored)
-    return stored.headers.has(EMPTY_TILE_HEADER) ? transparent() : { data: await stored.arrayBuffer() };
-  const url = providerUrl(source, z, x, y);
-  const network = url ? await fromNetwork(url, abort.signal) : null;
-  if (network === 'missing') return transparent();
-  if (network) return { data: network };
-  const ancestor = await fromAncestor(source, z, x, y);
-  return ancestor ? { data: ancestor } : transparent();
+  const renderer = renderers.get(name);
+  if (renderer) {
+    const data = await renderer({ z, x, y }, new URLSearchParams(query ?? ''), abort.signal);
+    return { data: data ?? TRANSPARENT_PNG.slice(0) };
+  }
+  if (!isTileSourceId(name)) throw new Error(`unknown tile source ${name}`);
+  const data = await tileData(name, z, x, y, abort.signal);
+  if (data) return { data };
+  if (TILE_SOURCES[name].kind === 'dem') throw new Error(`no elevation tile ${z}/${x}/${y}`);
+  return { data: TRANSPARENT_PNG.slice(0) };
 }
 
 /** One tile as an image blob, stored copy first; used for previews outside the map. */

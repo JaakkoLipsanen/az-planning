@@ -70,6 +70,14 @@ The route GPX files include the non-OSM points within `gpxMaxDistanceM` of the r
 
 `plan:` sets the day range (`min <= default <= max`), the long-day threshold, start and finish names and the hand-picked `overnights` (`km` disambiguates places the route passes twice). The app computes the plan itself from the profile and these stops. Without `plan`, the app shows no day plan.
 
+## Dates, daylight and typical weather
+
+- `timezone` (an IANA name such as `America/Phoenix`) sets the time zone for dates and sun times.
+- `plan.startDate` (YYYY-MM-DD) suggests a start date. Users can change it in the app; the day cards then show the date, the light from civil dawn to civil dusk and the typical weather.
+- `climate: { years: [2005, 2024] }` adds typical weather from [NASA POWER](data-sources.md#typical-weather-nasa-power) for the grid around the route. It feeds the day cards, the temperature view of the elevation profile and the temperature map overlay. It adds about 20 KB to the bundle.
+
+Sun times need nothing but the date and position, so they work for every trip with a start date.
+
 ## Offline packs
 
 Each pack stores one tile `source` within `radiusKm` of the route and alternatives, per zoom; every tile within the radius is included. Wide buffers are cheap at low zoom (z8 tiles are about 130 km across), but every extra zoom level costs four times as much, so keep detail levels narrow. Zoom levels must be ones the source serves (terrain is used up to z12), raster sources must be in `imagery.basemaps`, and `selected: false` leaves a pack unticked by default. The build prints the tile count and estimated size of every pack.

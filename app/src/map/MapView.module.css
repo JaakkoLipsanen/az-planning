@@ -30,19 +30,19 @@
   font: 14px var(--font-body);
 }
 
-.terrainButton {
+.toggleButton {
   font: 700 13px var(--font-display) !important;
   color: var(--fg) !important;
   letter-spacing: 0.02em;
 }
 
-.terrainButton.on {
+.toggleButton.on {
   background: var(--accent) !important;
   color: var(--accent-fg) !important;
 }
 
 @media (max-width: 820px) {
-  .terrainButton {
+  .toggleButton {
     width: 38px !important;
     height: 38px !important;
   }

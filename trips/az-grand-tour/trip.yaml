@@ -5,6 +5,7 @@ shortName: AZ Grand Tour
 subtitle: Phoenix to Tucson by Fool's Loop, Queen's Ransom, Arizona Trail and the Madrean Rugged Ramble
 description: Route, day plan, POIs and offline maps for the Arizona Grand Tour bikepacking trip.
 attribution: "Routes: bikepacking.com & AZTR GPX"
+timezone: America/Phoenix
 
 # West, south, east, north: the area of the basemap overlay and the land data.
 region: [-113.37890625, 30.90222470517144, -109.16015625, 35.31736632923788]
@@ -472,6 +473,10 @@ offline:
       label: Satellite, sharpest (zoom 16)
       source: usgs-imagery
       radiusKm: { 16: 0.5 }
+
+# Typical weather by week of the year from 20 years of daily data (sun times need `timezone` above).
+climate:
+  years: [2005, 2024]
 
 gpx:
   baseName: AZ_FoolsLoop_QueensRansom_AZT_Lemmon_MRR

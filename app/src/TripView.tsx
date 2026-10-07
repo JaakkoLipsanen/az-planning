@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 
 import type { TripBundle } from '#shared/bundle.ts';
 
+import { TemperatureControl } from './climate/TemperatureControl.tsx';
 import { BasemapSwitcher } from './map/BasemapSwitcher.tsx';
 import { HoverMarker } from './map/HoverMarker.tsx';
 import { MapInteractions } from './map/MapInteractions.tsx';
 import { MapView } from './map/MapView.tsx';
+import { MeasurePanel } from './map/MeasurePanel.tsx';
 import { PositionCard } from './map/PositionCard.tsx';
 import { useMapSync } from './map/useMapSync.ts';
 import { OfflineProvider } from './offline/OfflineContext.tsx';
@@ -26,6 +28,8 @@ function MapOverlays() {
       <HoverMarker />
       <BasemapSwitcher />
       <PositionCard />
+      <TemperatureControl />
+      <MeasurePanel />
     </>
   );
 }

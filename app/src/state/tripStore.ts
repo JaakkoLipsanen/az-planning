@@ -7,7 +7,10 @@ import type { TileSourceId } from '#shared/basemaps.ts';
 import { POI_CATEGORIES, type PoiCategory, type TripBundle } from '#shared/bundle.ts';
 import type { Bounds, LngLat } from '#shared/geo.ts';
 
+import { isIsoDate } from '../climate/time.ts';
+
 export type ColorMode = 'surface' | 'section' | 'day';
+export type ProfileMode = 'elevation' | 'temperature';
 export type PoiGroup = PoiCategory | 'osm' | 'plan';
 
 export const DETAIL_LAYERS = [
@@ -38,12 +41,20 @@ export interface TripSettings {
   details: Record<DetailLayer, boolean>;
   dayLabels: boolean;
   profileCollapsed: boolean;
+  profileMode: ProfileMode;
   offlinePacks: string[];
+  /** First day of the trip (YYYY-MM-DD), for dates, sun times and typical weather. */
+  startDate: string | null;
+  temperatureOverlay: boolean;
+  /** Date and hour shown by the temperature overlay; the date defaults to the start date. */
+  overlayDate: string | null;
+  overlayHour: number;
 }
 
 export type HoverExtra =
   | { kind: 'line'; name: string; km: number; totalKm: number; ele: number | null }
-  | { kind: 'land'; label: string; color: string };
+  | { kind: 'land'; label: string; color: string }
+  | { kind: 'temperature'; celsius: number; ele: number; hour: number };
 
 /** What the pointer is over: a final-route profile sample and/or other lines and land nearby. */
 export interface Hover {
@@ -76,6 +87,8 @@ interface TripUi {
   gps: GpsPosition | null;
   gpsError: string | null;
   camera: (CameraRequest & { id: number }) | null;
+  /** Points of the distance measurement, or null when not measuring. */
+  measure: LngLat[] | null;
 }
 
 type ListSetting = 'hiddenSections' | 'sources' | 'alternatives' | 'poiGroups' | 'land' | 'offlinePacks';
@@ -90,6 +103,7 @@ interface TripActions {
   setHover: (hover: Hover | null) => void;
   setGps: (gps: GpsPosition | null, gpsError?: string | null) => void;
   moveCamera: (request: CameraRequest) => void;
+  setMeasure: (points: LngLat[] | null) => void;
 }
 
 export type TripState = TripSettings & TripUi & TripActions;
@@ -113,7 +127,12 @@ export function defaultSettings(bundle: TripBundle): TripSettings {
     details: Object.fromEntries(DETAIL_LAYERS.map((layer) => [layer, true])) as Record<DetailLayer, boolean>,
     dayLabels: Boolean(bundle.plan),
     profileCollapsed: false,
+    profileMode: 'elevation',
     offlinePacks: (bundle.offline?.packs ?? []).filter((p) => p.selected !== false).map((p) => p.id),
+    startDate: bundle.plan?.startDate ?? null,
+    temperatureOverlay: false,
+    overlayDate: null,
+    overlayHour: 6,
   };
 }
 
@@ -158,7 +177,12 @@ function settingsSchema(bundle: TripBundle) {
     details: lenient(details),
     dayLabels: lenient(z.boolean()),
     profileCollapsed: lenient(z.boolean()),
+    profileMode: lenient(oneOf<ProfileMode>(bundle.climate ? ['elevation', 'temperature'] : ['elevation'])),
     offlinePacks: lenient(knownIds((bundle.offline?.packs ?? []).map((x) => x.id))),
+    startDate: lenient(isoDate.nullable()),
+    temperatureOverlay: lenient(z.boolean()),
+    overlayDate: lenient(isoDate.nullable()),
+    overlayHour: lenient(z.int().min(0).max(23)),
   } satisfies { [K in keyof TripSettings]: z.ZodType<TripSettings[K] | undefined> };
   return z.object(shape).partial().catch({});
 }
@@ -168,6 +192,8 @@ export function sanitizeSettings(stored: unknown, bundle: TripBundle): Partial<T
   const settings = settingsSchema(bundle).parse(stored);
   return Object.fromEntries(Object.entries(settings).filter(([, value]) => value !== undefined));
 }
+
+const isoDate = z.custom<string>(isIsoDate);
 
 const savedSettings = z.object({ state: z.unknown(), version: z.literal(STORAGE_VERSION) });
 
@@ -208,6 +234,7 @@ export function createTripStore(bundle: TripBundle): TripStore {
       gps: null,
       gpsError: null,
       camera: null,
+      measure: null,
       update: applySettings,
       toggleInList: (list, id, on) => {
         const current: readonly string[] = get()[list];
@@ -224,6 +251,7 @@ export function createTripStore(bundle: TripBundle): TripStore {
       setHover: (hover) => set({ hover }),
       setGps: (gps, gpsError = null) => set({ gps, gpsError }),
       moveCamera: (request) => set((s) => ({ camera: { ...request, id: (s.camera?.id ?? 0) + 1 } })),
+      setMeasure: (measure) => set({ measure }),
     };
   });
 }

@@ -24,6 +24,8 @@ export interface TripBundle {
   subtitle?: string;
   description?: string;
   attribution?: string;
+  /** IANA time zone of the trip area (e.g. America/Phoenix), for dates and sun times. */
+  timezone?: string;
   /** Bounds of the final route. */
   bounds: Bounds;
   /** The area covered by the basemap overlay and the land data. */
@@ -41,6 +43,7 @@ export interface TripBundle {
   basemap?: BasemapOverlay;
   imagery?: ImagerySettings;
   offline?: OfflineSettings;
+  climate?: ClimateLayer;
   files?: TripFiles;
 }
 
@@ -137,6 +140,8 @@ export interface PlanSettings {
   longDayHours: number;
   start: string;
   finish: string;
+  /** Suggested first day (YYYY-MM-DD); the app lets the user change it. */
+  startDate?: string;
   note?: string;
   /** Hand-picked overnight stops; preferred when the plan snaps nights to stops. */
   overnights: PlanStop[];
@@ -224,6 +229,37 @@ export interface OfflinePack {
   estimatedBytes: number;
   /** False when the pack is not ticked for download by default. */
   selected?: boolean;
+}
+
+/** Typical weather on a grid around the route, by week of the year (see shared/climate.ts). */
+export interface ClimateLayer {
+  source: string;
+  years: [first: number, last: number];
+  /** Grid spacing in degrees; cells are centred on multiples of it. */
+  cellSize: { lng: number; lat: number };
+  /** A day counts as wet from this much precipitation. */
+  wetDayMm: number;
+  /** Daily mean cloud cover (%) below which a day counts as clear and above which as cloudy. */
+  cloud: { clearBelow: number; cloudyAbove: number };
+  cells: ClimateCell[];
+}
+
+/** One grid cell: 52 weekly values per series, each encoded with encodeIntegers. */
+export interface ClimateCell {
+  lat: number;
+  lng: number;
+  /** Mean elevation of the cell in metres, which its temperatures refer to. */
+  ele: number;
+  /** Mean daily low and high, °C x 10. */
+  tMin: string;
+  tMax: string;
+  /** Share of wet days, %. */
+  wet: string;
+  /** Mean precipitation, mm per day x 10. */
+  rain: string;
+  /** Share of clear and of cloudy days, %; the rest are partly cloudy. */
+  clear: string;
+  cloudy: string;
 }
 
 export interface TripFiles {
