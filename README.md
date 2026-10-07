@@ -51,3 +51,5 @@ Every trip is installable on its own: open `/<slug>/` on the phone and use "Add 
 - Topo and imagery tiles: USGS The National Map (public domain). Elevation: Terrarium tiles (AWS Open Data). Land status: BLM Surface Management Agency.
 - MapLibre GL JS (BSD-3-Clause); Noto Sans map glyphs and Barlow UI fonts (SIL OFL).
 - The source GPX files belong to their authors (bikepacking.com, Arizona Trail Race, Arizona Trail Association) and are here for personal trip planning. Keep the repository private.
+
+test
